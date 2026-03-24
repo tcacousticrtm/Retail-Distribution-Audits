@@ -137,7 +137,7 @@ function doPost(e) {
 
     // ── PHOTO UPLOAD ──────────────────────────────────────────────
     if (data.action === 'uploadPhoto') {
-      var folder = getOrCreateFolder(data.store, data.date, data.section);
+      var folder = getOrCreateFolder(data.store, data.date, data.section, data.country || 'SG');
       var blob   = Utilities.newBlob(
         Utilities.base64Decode(data.imageData),
         data.mimeType || 'image/jpeg',
@@ -190,12 +190,14 @@ function doPost(e) {
     if (data.action === 'logPhotoSubmission') {
       var pLog = ss.getSheetByName('Photo Log') || ss.insertSheet('Photo Log');
       if (pLog.getLastRow() === 0) {
-        pLog.appendRow(['Timestamp','Store','Date','Country','CM Name','Total Photos','Sec A','Sec B','Sec C','Sec D','Sec E','Sec F']);
+        pLog.appendRow(['Timestamp','Store','Date','Country','CM Name','Total Photos','Sec A','Sec B','Sec C','Sec D','Sec E','Sec F','Notes A','Notes B','Notes C','Notes D','Notes E','Notes F']);
       }
       var secs = data.sections || {};
+      var notes = data.sectionNotes || {};
       pLog.appendRow([
         new Date().toISOString(), data.store, data.date, data.country, data.cmName,
-        data.totalPhotos, secs.A||0, secs.B||0, secs.C||0, secs.D||0, secs.E||0, secs.F||0
+        data.totalPhotos, secs.A||0, secs.B||0, secs.C||0, secs.D||0, secs.E||0, secs.F||0,
+        notes.A||'', notes.B||'', notes.C||'', notes.D||'', notes.E||'', notes.F||''
       ]);
       return ContentService
         .createTextOutput(JSON.stringify({ status:'success' }))
@@ -262,35 +264,48 @@ function doGet(e) {
     var filterDate  = parts[1] || '';
     // Search Drive folder: Retail Distribution Audits / store / date /
     try {
-      var roots = DriveApp.getFoldersByName('Retail Distribution Audits');
-      if (roots.hasNext()) {
-        var root = roots.next();
-        var storeFolders = filterStore ? root.getFoldersByName(filterStore) : root.getFolders();
-        while (storeFolders.hasNext()) {
-          var sf = storeFolders.next();
-          var dateFolders = filterDate ? sf.getFoldersByName(filterDate) : sf.getFolders();
-          while (dateFolders.hasNext()) {
-            var df = dateFolders.next();
-            var secFolders = section ? df.getFoldersByName('Section ' + section) : df.getFolders();
-            while (secFolders.hasNext()) {
-              var secF = secFolders.next();
-              var secId = secF.getName().replace('Section ','');
-              var files = secF.getFiles();
-              while (files.hasNext()) {
-                var file = files.next();
-                photos.push({
-                  section: secId,
-                  fileName: file.getName(),
-                  driveUrl: file.getDownloadUrl(),
-                  viewUrl: file.getUrl(),
-                  caption: file.getDescription() || '',
-                  auditKey: key,
-                });
+      var countryId = (e.parameter.country && COUNTRY_FOLDERS[e.parameter.country])
+        ? COUNTRY_FOLDERS[e.parameter.country]
+        : null;
+      var searchRoots = countryId
+        ? [DriveApp.getFolderById(countryId)]
+        : Object.values(COUNTRY_FOLDERS).map(function(id) { try { return DriveApp.getFolderById(id); } catch(e) { return null; }}).filter(Boolean);
+
+      searchRoots.forEach(function(countryFolder) {
+        var yearFolders = countryFolder.getFolders();
+        while (yearFolders.hasNext()) {
+          var yf = yearFolders.next();
+          var storeFolders2 = filterStore ? yf.getFoldersByName(filterStore) : yf.getFolders();
+          while (storeFolders2.hasNext()) {
+            var sf = storeFolders2.next();
+            var weekFolders = sf.getFolders();
+            while (weekFolders.hasNext()) {
+              var wf = weekFolders.next();
+              // Only search this week folder if date matches (week label contains date approx)
+              var secFolders = section ? wf.getFoldersByName('Section ' + section) : wf.getFolders();
+              while (secFolders.hasNext()) {
+                var secF = secFolders.next();
+                var secId = secF.getName().replace('Section ','');
+                var files = secF.getFiles();
+                while (files.hasNext()) {
+                  var file = files.next();
+                  // Filter by date in filename if provided
+                  if (!filterDate || file.getName().indexOf(filterDate) !== -1 || wf.getName().indexOf(filterDate.substring(0,7)) !== -1) {
+                    photos.push({
+                      section: secId,
+                      fileName: file.getName(),
+                      driveUrl: file.getDownloadUrl(),
+                      viewUrl: file.getUrl(),
+                      caption: file.getDescription() || '',
+                      auditKey: key,
+                    });
+                  }
+                }
               }
             }
           }
         }
-      }
+      });
     } catch(err) {}
     return ContentService
       .createTextOutput(JSON.stringify(photos))
@@ -319,19 +334,51 @@ function doGet(e) {
 }
 
 // ── DRIVE FOLDER HELPER ───────────────────────────────────────────
-function getOrCreateFolder(store, date, section) {
-  var rootName = 'Retail Distribution Audits';
-  var roots = DriveApp.getFoldersByName(rootName);
-  var root = roots.hasNext() ? roots.next() : DriveApp.createFolder(rootName);
+// Uses existing TC Acoustic audit Drive folders
+var COUNTRY_FOLDERS = {
+  'SG': '15hbjnuW2yzMMTdhw4tvEfvyOiRZKyoyF',
+  'MY': '18nuTsVAhBhUvDc6Cc9aqaTdOx8PSjgBw',
+  'HK': '1xXqpw_csYUuuxIVeEtvKBsfwU2YpGpuB',
+  'TH': '192ZJlFmK8s2FEKAQKflz9FZ06XH70cJv',
+};
 
-  var storeFolders = root.getFoldersByName(store);
-  var storeFolder = storeFolders.hasNext() ? storeFolders.next() : root.createFolder(store);
+function getOrCreateFolder(store, date, section, country) {
+  // Match existing structure: Country > Year > Store > Week > Section
+  var countryFolderId = COUNTRY_FOLDERS[country] || COUNTRY_FOLDERS['SG'];
+  var countryFolder   = DriveApp.getFolderById(countryFolderId);
 
-  var dateFolders = storeFolder.getFoldersByName(date);
-  var dateFolder = dateFolders.hasNext() ? dateFolders.next() : storeFolder.createFolder(date);
+  // Year folder (e.g. "2026")
+  var year = date ? date.substring(0, 4) : new Date().getFullYear().toString();
+  var yearFolders = countryFolder.getFoldersByName(year);
+  var yearFolder  = yearFolders.hasNext() ? yearFolders.next() : countryFolder.createFolder(year);
 
-  var secFolders = dateFolder.getFoldersByName('Section ' + section);
-  return secFolders.hasNext() ? secFolders.next() : dateFolder.createFolder('Section ' + section);
+  // Store folder
+  var storeFolders = yearFolder.getFoldersByName(store);
+  var storeFolder  = storeFolders.hasNext() ? storeFolders.next() : yearFolder.createFolder(store);
+
+  // Week folder (e.g. "W24 - 2026-03-30")
+  var weekLabel = getWeekLabel(date);
+  var weekFolders = storeFolder.getFoldersByName(weekLabel);
+  var weekFolder  = weekFolders.hasNext() ? weekFolders.next() : storeFolder.createFolder(weekLabel);
+
+  // Section subfolder
+  var secLabel   = 'Section ' + section;
+  var secFolders = weekFolder.getFoldersByName(secLabel);
+  return secFolders.hasNext() ? secFolders.next() : weekFolder.createFolder(secLabel);
+}
+
+function getWeekLabel(dateStr) {
+  // Returns e.g. "W13 - 2026-03-24"
+  if (!dateStr) return 'Unknown Week';
+  var d    = new Date(dateStr);
+  var start = new Date(d);
+  start.setDate(d.getDate() - d.getDay() + 1); // Monday of that week
+  var pad  = function(n) { return n < 10 ? '0' + n : '' + n; };
+  var mon  = start.getFullYear() + '-' + pad(start.getMonth()+1) + '-' + pad(start.getDate());
+  // Calculate week number of year
+  var oneJan = new Date(d.getFullYear(), 0, 1);
+  var wk = Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
+  return 'W' + pad(wk) + ' - ' + mon;
 }
 
 // ── ONE-TIME SETUP (run manually once after pasting) ──────────────

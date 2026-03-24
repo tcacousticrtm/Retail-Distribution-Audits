@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>TC Audit — Photo Upload</title>
+<title>RD Weekly Store Audits Submission</title>
 <link rel="manifest" href="./cm-manifest.json">
 <meta name="theme-color" content="#C8A84B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TC Photos">
+<meta name="apple-mobile-web-app-title" content="RD Audits">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <script>
   if ('serviceWorker' in navigator) {
@@ -62,6 +62,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .add-photo-btn{width:76px;height:76px;border-radius:6px;border:1.5px dashed var(--border2);background:var(--surface2);color:var(--text-muted);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
 .add-photo-btn:active{border-color:var(--gold);color:var(--gold);}
 .upload-hint{font-size:11px;color:var(--text-muted);line-height:1.5;}
+.info-field{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-weight:600;padding:11px 13px;min-height:44px;display:flex;align-items:center;}
+.info-field.muted{color:var(--text-muted);font-weight:400;font-size:12px;}
+.section-note{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text-dim);font-size:12px;padding:9px 11px;font-family:inherit;resize:none;margin-top:10px;}
+.section-note:focus{outline:none;border-color:var(--gold);}
 
 /* STATUS */
 .status-bar{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-dim);display:none;}
@@ -95,8 +99,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="header-inner">
     <div class="logo-mark">TC</div>
     <div>
-      <div class="header-title">Store Photo Submission</div>
-      <div class="header-sub">TC Acoustic Retail Distribution</div>
+      <div class="header-title">RD Weekly Store Audits Submission</div>
+      <div class="header-sub">For Channel Managers — TC Acoustic Retail Distribution</div>
     </div>
   </div>
 </div>
@@ -125,7 +129,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Store</div>
-        <select class="field-select" id="cm-store"></select>
+        <select class="field-select" id="cm-store" onchange="onStoreChange()"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Channel Manager</div>
+          <div class="info-field" id="cm-auto-name">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Store Tier</div>
+          <div class="info-field" id="cm-auto-tier">—</div>
+        </div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Audit Date</div>
@@ -169,74 +183,194 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STORE DATABASE (same as scorecard) ────────────────────────────
-const STORES = {
+// ── STORE DATABASE ────────────────────────────────────────────────
+const TIER_LABELS = { 1:'T1 — Flagship', 2:'T2 — Standard', 3:'T3 — Basic' };
+
+const STORE_DATA = {
   SG: [
-    "— Select store —",
-    "Challenger @ Great World City","Challenger @ Clementi Mall","Challenger @ Tiong Bahru",
-    "Challenger @ Parkway Parade","Challenger @ JEM","Challenger @ Bugis B1",
-    "Challenger @ Ang Mo Kio Hub","Challenger @ Causeway Point","Challenger @ Jurong Point",
-    "Challenger @ Northpoint","Challenger @ Tampines 1","Challenger @ Tampines Mall",
-    "Challenger @ Plaza Singapura","Challenger @ Vivocity","Challenger @ NEX",
-    "Challenger @ Bugis Junction","Challenger @ Lot One","Challenger @ IMM",
-    "Challenger @ ION","Challenger @ 313","Challenger @ Paya Lebar HQ",
-    "Challenger @ Raffles City","Challenger @ Suntec City","Challenger @ Jewel",
-    "Challenger @ Pasir Ris Mall","Challenger @ Woodleigh Mall",
-    "Harvey Norman @ Millenia Walk","Harvey Norman @ Parkway Parade","Harvey Norman @ West Gate",
-    "Harvey Norman @ Viva","Harvey Norman @ West Mall","Harvey Norman @ Northpoint",
-    "Harvey Norman @ Hougang Mall","Harvey Norman @ Seletar Mall","Harvey Norman @ Punggol Coast",
-    "Harvey Norman @ Lot One","Harvey Norman @ Jurong Point","Harvey Norman @ Bukit Panjang",
-    "Best Denki @ Ngee Ann City","Best Denki @ Vivocity","Best Denki (Singapore) Pte Ltd @ Funan",
-    "Best Denki @ Great World City","Best Denki @ Plaza Singapura","Best Denki @ Junction 8","Best Denki @ IMM",
-    "Courts @ The Heeren","Courts @ Megastore","Courts @ NEX","Courts @ Jurong Point","Courts @ JEM",
-    "Takashimaya @ Ngee Ann City","TK FOTO @ Funan","Connect IT @ Somerset",
-    "Gain City @ Sungei Kadut Megastore","Gain City @ Marina Square",
-    "Chamber (Sports Fashion Pte Ltd)","AV Intelligence","Parisilk @ Holland Village",
-    "Commune Lifestyle Pte Ltd","Actually","Forty Two","Excel Hardware","Zepplin & Co",
-    "Sprint Cass @ T1 E1","Sprint Cass @ T1 H1","Sprint Cass @ T2 E2",
-    "Sprint Cass @ T2 M2","Sprint Cass @ T3 E3","Sprint Cass @ T3 M3","Sprint Cass @ T4 E4",
+    {name:"— Select store —"},
+    {name:"Challenger @ Great World City",        cm:"Zhi Yong"},
+    {name:"Challenger @ Clementi Mall",           cm:"Zhi Yong"},
+    {name:"Challenger @ Tiong Bahru",             cm:"Zhi Yong"},
+    {name:"Challenger @ Parkway Parade",          cm:"Zhi Yong"},
+    {name:"Challenger @ JEM",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Bugis B1",                cm:"Zhi Yong"},
+    {name:"Challenger @ Ang Mo Kio Hub",          cm:"Zhi Yong"},
+    {name:"Challenger @ Causeway Point",          cm:"Zhi Yong"},
+    {name:"Challenger @ Jurong Point",            cm:"Zhi Yong"},
+    {name:"Challenger @ Northpoint",              cm:"Zhi Yong"},
+    {name:"Challenger @ Tampines 1",              cm:"Zhi Yong"},
+    {name:"Challenger @ Tampines Mall",           cm:"Zhi Yong"},
+    {name:"Challenger @ Plaza Singapura",         cm:"Zhi Yong"},
+    {name:"Challenger @ Vivocity",                cm:"Zhi Yong"},
+    {name:"Challenger @ NEX",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Bugis Junction",          cm:"Zhi Yong"},
+    {name:"Challenger @ Lot One",                 cm:"Zhi Yong"},
+    {name:"Challenger @ IMM",                     cm:"Zhi Yong"},
+    {name:"Challenger @ ION",                     cm:"Zhi Yong"},
+    {name:"Challenger @ 313",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Paya Lebar HQ",           cm:"Zhi Yong"},
+    {name:"Challenger @ Raffles City",            cm:"Zhi Yong"},
+    {name:"Challenger @ Suntec City",             cm:"Zhi Yong"},
+    {name:"Challenger @ Jewel",                   cm:"Zhi Yong"},
+    {name:"Challenger @ Pasir Ris Mall",          cm:"Zhi Yong"},
+    {name:"Challenger @ Woodleigh Mall",          cm:"Zhi Yong"},
+    {name:"Harvey Norman @ Millenia Walk",        tier:1, cm:"Johnathan"},
+    {name:"Harvey Norman @ Parkway Parade",       tier:1, cm:"Johnathan"},
+    {name:"Harvey Norman @ West Gate",            tier:1, cm:"Johnathan"},
+    {name:"Harvey Norman @ Viva",                 tier:2, cm:"Johnathan"},
+    {name:"Harvey Norman @ West Mall",            tier:2, cm:"Johnathan"},
+    {name:"Harvey Norman @ Northpoint",           tier:2, cm:"Johnathan"},
+    {name:"Harvey Norman @ Hougang Mall",         tier:3, cm:"Johnathan"},
+    {name:"Harvey Norman @ Seletar Mall",         tier:3, cm:"Johnathan"},
+    {name:"Harvey Norman @ Punggol Coast",        tier:3, cm:"Johnathan"},
+    {name:"Harvey Norman @ Lot One",              tier:3, cm:"Johnathan"},
+    {name:"Harvey Norman @ Jurong Point",         tier:3, cm:"Johnathan"},
+    {name:"Harvey Norman @ Bukit Panjang",                cm:"Johnathan"},
+    {name:"Best Denki @ Ngee Ann City",           tier:1, cm:"Johnathan"},
+    {name:"Best Denki @ Vivocity",                tier:1, cm:"Johnathan"},
+    {name:"Best Denki (Singapore) Pte Ltd @ Funan", tier:1, cm:"Johnathan"},
+    {name:"Best Denki @ Great World City",        tier:2, cm:"Johnathan"},
+    {name:"Best Denki @ Plaza Singapura",         tier:2, cm:"Johnathan"},
+    {name:"Best Denki @ Junction 8",              tier:3, cm:"Johnathan"},
+    {name:"Best Denki @ IMM",                     tier:3, cm:"Johnathan"},
+    {name:"Courts @ The Heeren",                  tier:1, cm:"Jerome"},
+    {name:"Courts @ Megastore",                   tier:1, cm:"Jerome"},
+    {name:"Courts @ NEX",                         tier:3, cm:"Jerome"},
+    {name:"Courts @ Jurong Point",                tier:3, cm:"Jerome"},
+    {name:"Courts @ JEM",                                 cm:"Jerome"},
+    {name:"Takashimaya @ Ngee Ann City",                  cm:"Goh Xinyi"},
+    {name:"TK FOTO @ Funan",                              cm:"Jerome"},
+    {name:"Connect IT @ Somerset",                        cm:"Jerome"},
+    {name:"Gain City @ Sungei Kadut Megastore"},
+    {name:"Gain City @ Marina Square"},
+    {name:"Chamber (Sports Fashion Pte Ltd)"},
+    {name:"AV Intelligence"},
+    {name:"Parisilk @ Holland Village"},
+    {name:"Commune Lifestyle Pte Ltd"},
+    {name:"Actually"},
+    {name:"Forty Two"},
+    {name:"Excel Hardware"},
+    {name:"Zepplin & Co"},
+    {name:"Sprint Cass @ T1 E1",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T1 H1",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T2 E2",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T2 M2",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T3 E3",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T3 M3",                          cm:"Sinclair"},
+    {name:"Sprint Cass @ T4 E4",                          cm:"Sinclair"},
   ],
   MY: [
-    "— Select store —",
-    "Harvey Norman (MY) @ Ikano (IPC)","Harvey Norman (MY) @ Mid Valley","Harvey Norman (MY) @ Johor Paradigm Mall",
-    "Harvey Norman (MY) @ Johor Southkey","Harvey Norman (MY) @ Ipoh Parade","Harvey Norman (MY) @ 1 Utama",
-    "Harvey Norman (MY) @ JB Toppen","Harvey Norman (MY) @ Suria Sabah","Harvey Norman (MY) @ Pavilion Damansara Heights",
-    "Harvey Norman (MY) @ Bintulu","Harvey Norman (MY) @ Sunway Pyramid","Harvey Norman (MY) @ Pavilion KL",
-    "Harvey Norman (MY) @ Queensbay Mall","Harvey Norman (MY) @ IOI City Mall","Harvey Norman (MY) @ Vivacity Mall",
-    "Harvey Norman (MY) @ Miri Times Square","Harvey Norman (MY) @ Ikea Batu Kawan","Harvey Norman (MY) @ Pavilion Bukit Jalil",
-    "Harvey Norman (MY) @ Sunway Carnival","Harvey Norman (MY) @ Penang Sunshine","Harvey Norman (MY) @ Gurney Plaza",
-    "TMT @ Mid Valley","TMT @ Sunway Pyramid","TMT @ JB Southkey",
-    "Flash Gadgets @ The Gardens Mall","Flash Gadgets @ IOI City Mall","Flash Gadgets @ Mid Valley","Flash Gadgets @ Suria KLCC",
-    "All IT @ One Utama",
-    "Urban Republic @ Pavilion KL","Urban Republic @ Queensbay Mall","Urban Republic @ Gurney Plaza",
-    "Urban Republic @ Tebrau City","Urban Republic @ Aeon Bukit Tinggi",
-    "PC Image @ Johor Southkey","PC Image @ Sibu Delta Mall",
+    {name:"— Select store —"},
+    {name:"Harvey Norman (MY) @ Ikano (IPC)",              tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Mid Valley",               tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Johor Paradigm Mall",      tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Johor Southkey",           tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Ipoh Parade",              tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ 1 Utama",                  tier:1, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ JB Toppen",                tier:2, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Suria Sabah",              tier:2, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Pavilion Damansara Heights",tier:2, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Bintulu",                  tier:2, cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Sunway Pyramid",           tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Pavilion KL",              tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Queensbay Mall",           tier:1, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ IOI City Mall",            tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Vivacity Mall",            tier:1, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Miri Times Square",        tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Ikea Batu Kawan",          tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Pavilion Bukit Jalil",     tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Sunway Carnival",          tier:1, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Penang Sunshine",          tier:2, cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Gurney Plaza",             tier:2, cm:"Jin Nong"},
+    {name:"TMT @ Mid Valley",                              tier:1, cm:"Jin Nong"},
+    {name:"TMT @ Sunway Pyramid",                          tier:1, cm:"Jin Nong"},
+    {name:"TMT @ JB Southkey",                             tier:2, cm:"Adrian"},
+    {name:"Flash Gadgets @ The Gardens Mall",              tier:1, cm:"Jin Nong"},
+    {name:"Flash Gadgets @ IOI City Mall",                 tier:2, cm:"Jin Nong"},
+    {name:"Flash Gadgets @ Mid Valley",                            cm:"Jin Nong"},
+    {name:"Flash Gadgets @ Suria KLCC",                            cm:"Jin Nong"},
+    {name:"All IT @ One Utama"},
+    {name:"Urban Republic @ Pavilion KL",                  tier:3, cm:"Jin Nong"},
+    {name:"Urban Republic @ Queensbay Mall",               tier:3, cm:"Jin Nong"},
+    {name:"Urban Republic @ Gurney Plaza",                 tier:3, cm:"Jin Nong"},
+    {name:"Urban Republic @ Tebrau City",                  tier:3, cm:"Adrian"},
+    {name:"Urban Republic @ Aeon Bukit Tinggi",            tier:3, cm:"Adrian"},
+    {name:"PC Image @ Johor Southkey"},
+    {name:"PC Image @ Sibu Delta Mall"},
   ],
   HK: [
-    "— Select store —",
-    "TechLife City Plaza","TechLife Melbourne Plaza","TechLife New Town Plaza","TechLife Ocean Centre",
-    "TechLife Telford Garden","TechLife Times Square","TechLife Ma On Shan","TechLife Tai Po",
-    "TechLife Elements","TechLife YOHO",
-    "TechLife APM","TechLife Diamond Hill","TechLife Festival Walk","TechLife Olympian City",
-    "TechLife PopCorn","TechLife The Wai","TechLife Tsing Yi","TechLife Tsuen Wan Plaza",
-    "TechLife Tuen Mun Town","TechLife Tung Chung","TechLife Whampoa",
-    "AV Life K11","AV Life New Town Plaza","AV Life SOGO",
-    "AV Life CityPlaza","AV Life East Point City","AV Life Lok Fu","AV Life Olympian City",
-    "AV Life Times Square","AV Life Tsuen Wan Plaza","AV Life Tuen Mun","AV Life Wong Chuk Hang",
-    "Cosmic Tech SSP","Fortress Golden Centre",
-    "Super King","Super King CWB","Radio Unison",
+    {name:"— Select store —"},
+    {name:"TechLife City Plaza",           tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Melbourne Plaza",      tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife New Town Plaza",       tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Ocean Centre",         tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Telford Garden",       tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Times Square",         tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Ma On Shan",           tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Tai Po",               tier:1, cm:"Ginger Kiang"},
+    {name:"TechLife Elements",             tier:2, cm:"Ginger Kiang"},
+    {name:"TechLife YOHO",                 tier:2, cm:"Ginger Kiang"},
+    {name:"TechLife APM",                  tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Diamond Hill",         tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Festival Walk",        tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Olympian City",        tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife PopCorn",              tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife The Wai",              tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Tsing Yi",             tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Tsuen Wan Plaza",      tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Tuen Mun Town",        tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Tung Chung",           tier:3, cm:"Ginger Kiang"},
+    {name:"TechLife Whampoa",              tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life K11",                   tier:2, cm:"Ginger Kiang"},
+    {name:"AV Life New Town Plaza",        tier:2, cm:"Ginger Kiang"},
+    {name:"AV Life SOGO",                  tier:2, cm:"Ginger Kiang"},
+    {name:"AV Life CityPlaza",             tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life East Point City",       tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Lok Fu",                tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Olympian City",         tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Times Square",          tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Tsuen Wan Plaza",       tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Tuen Mun",              tier:3, cm:"Ginger Kiang"},
+    {name:"AV Life Wong Chuk Hang",        tier:3, cm:"Ginger Kiang"},
+    {name:"Cosmic Tech SSP",               tier:3, cm:"Ginger Kiang"},
+    {name:"Fortress Golden Centre",        tier:3, cm:"Ginger Kiang"},
+    {name:"Super King",                            cm:"Ricky"},
+    {name:"Super King CWB",                        cm:"Ricky"},
+    {name:"Radio Unison",                          cm:"Ricky"},
   ],
   TH: [
-    "— Select store —",
-    "Powerbuy @ Central World","Powerbuy @ Central Chidlom","Powerbuy @ Central Phuket","Powerbuy @ Central Samui",
-    "Dotlife @ Central World","Dotlife @ Paragon","Dotlife @ Central Eastville","Dotlife @ Central Rama 9",
-    "Dotlife @ Promenade","Dotlife @ Icon Siam","Dotlife @ Mega Bangna","Dotlife @ Central Westgate",
-    "Dotlife @ Central Autthaya","Dotlife @ Central Udonthani","Dotlife @ Central Phuket",
-    "Dotlife @ Central Chiangmai","Dotlife @ Siam Paragon","Dotlife @ Chiang Mai",
-    "APP @ Paragon","iStudio @ Siam Paragon","Digital Lab @ Siam Discovery",
-    "Tech House @ One Bangkok","LOFT @ Siam Paragon",
+    {name:"— Select store —"},
+    {name:"Powerbuy @ Central World",       cm:"Ning"},
+    {name:"Powerbuy @ Central Chidlom",     cm:"Ning"},
+    {name:"Powerbuy @ Central Phuket",      cm:"Ning"},
+    {name:"Powerbuy @ Central Samui",       cm:"Ning"},
+    {name:"Dotlife @ Central World",        cm:"Ning"},
+    {name:"Dotlife @ Paragon",              cm:"Ning"},
+    {name:"Dotlife @ Central Eastville",    cm:"Ning"},
+    {name:"Dotlife @ Central Rama 9",       cm:"Ning"},
+    {name:"Dotlife @ Promenade",            cm:"Ning"},
+    {name:"Dotlife @ Icon Siam",            cm:"Ning"},
+    {name:"Dotlife @ Mega Bangna",          cm:"Ning"},
+    {name:"Dotlife @ Central Westgate",     cm:"Ning"},
+    {name:"Dotlife @ Central Autthaya",     cm:"Ning"},
+    {name:"Dotlife @ Central Udonthani",    cm:"Ning"},
+    {name:"Dotlife @ Central Phuket",       cm:"Ning"},
+    {name:"Dotlife @ Central Chiangmai",    cm:"Ning"},
+    {name:"Dotlife @ Siam Paragon",         cm:"Ning"},
+    {name:"Dotlife @ Chiang Mai",           cm:"Ning"},
+    {name:"APP @ Paragon",                  cm:"Ning"},
+    {name:"iStudio @ Siam Paragon",         cm:"Ning"},
+    {name:"Digital Lab @ Siam Discovery",   cm:"Ning"},
+    {name:"Tech House @ One Bangkok",       cm:"Ning"},
+    {name:"LOFT @ Siam Paragon",            cm:"Ning"},
   ],
 };
+
+// Flat STORES for the dropdown (names only)
+const STORES = Object.fromEntries(
+  Object.entries(STORE_DATA).map(([k,v]) => [k, v.map(s => s.name)])
+);
 
 const SECTIONS = [
   { id:'A', name:'Assets & Condition',      hint:'Full display overview, POS units, cable management' },
@@ -253,6 +387,7 @@ let photos = { A:[], B:[], C:[], D:[], E:[], F:[] };
 // ── INIT ──────────────────────────────────────────────────────────
 document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
 populateStores();
+onStoreChange();
 renderSectionCards();
 loadSavedUrl();
 
@@ -280,6 +415,35 @@ function populateStores() {
   const sel = document.getElementById('cm-store');
   sel.innerHTML = (STORES[country] || ['— Select store —']).map(s =>
     `<option value="${s}">${s}</option>`).join('');
+  onStoreChange();
+}
+
+function onStoreChange() {
+  const country = document.getElementById('cm-country').value;
+  const storeName = document.getElementById('cm-store').value;
+  const storeData = (STORE_DATA[country] || []).find(s => s.name === storeName);
+
+  const cmEl   = document.getElementById('cm-auto-name');
+  const tierEl = document.getElementById('cm-auto-tier');
+
+  if (storeData && storeData.cm) {
+    cmEl.textContent = storeData.cm;
+    cmEl.classList.remove('muted');
+    // Pre-fill name field if empty
+    const nameInput = document.getElementById('cm-name');
+    if (!nameInput.value) nameInput.value = storeData.cm;
+  } else {
+    cmEl.textContent = 'Not assigned';
+    cmEl.classList.add('muted');
+  }
+
+  if (storeData && storeData.tier) {
+    tierEl.textContent = TIER_LABELS[storeData.tier] || '—';
+    tierEl.classList.remove('muted');
+  } else {
+    tierEl.textContent = 'Not set';
+    tierEl.classList.add('muted');
+  }
 }
 
 function renderSectionCards() {
@@ -298,6 +462,7 @@ function renderSectionCards() {
         <input type="file" id="input-${sec.id}" accept="image/*" multiple capture="environment" style="display:none" onchange="handleFiles('${sec.id}',this)">
         <button class="add-photo-btn" onclick="document.getElementById('input-${sec.id}').click()">+</button>
         <div class="upload-hint" style="margin-top:8px;">Tap + to take or choose photos</div>
+        <textarea class="section-note" id="note-${sec.id}" placeholder="Store context for Section ${sec.id} — e.g. display under renovation, temporary layout, stock issues..." rows="2"></textarea>
       </div>
     </div>`).join('');
 }
@@ -365,6 +530,13 @@ async function submitPhotos() {
   const totalPhotos = Object.values(photos).reduce((n, arr) => n + arr.length, 0);
   if (totalPhotos === 0) { showToast('Please add at least one photo'); return; }
 
+  // Collect section notes
+  const sectionNotes = {};
+  ['A','B','C','D','E','F'].forEach(id => {
+    const note = document.getElementById(`note-${id}`)?.value?.trim();
+    if (note) sectionNotes[id] = note;
+  });
+
   const url = localStorage.getItem('cmUploadUrl');
   if (!url) { showToast('Ask your manager for the setup URL'); return; }
 
@@ -417,6 +589,7 @@ async function submitPhotos() {
         store, date, country, cmName: name,
         totalPhotos,
         sections: Object.fromEntries(Object.entries(photos).map(([k,v])=>[k,v.length])),
+        sectionNotes,
         timestamp: new Date().toISOString(),
       })
     });
