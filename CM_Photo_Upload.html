@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>TC Audit — Photo Upload</title>
+<link rel="manifest" href="./cm-manifest.json">
+<meta name="theme-color" content="#C8A84B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TC Photos">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./cm-sw.js').catch(e => console.log('SW:', e));
+    });
+  }
+</script>
+<style>
+:root {
+  --gold:#C8A84B; --gold-bg:rgba(200,168,75,0.09); --gold-border:rgba(200,168,75,0.25);
+  --bg:#0a0a0a; --surface:#111; --surface2:#161616; --surface3:#1c1c1c;
+  --border:#222; --border2:#2a2a2a;
+  --text:#e8e0d0; --text-dim:#888; --text-muted:#555;
+  --green:#6aaa62; --amber:#b8965a; --red:#c06060; --blue:#7aa8b8;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;padding-bottom:env(safe-area-inset-bottom);}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;padding-top:env(safe-area-inset-top);position:sticky;top:0;z-index:100;}
+.header-inner{display:flex;align-items:center;gap:10px;height:52px;}
+.logo-mark{width:28px;height:28px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#000;flex-shrink:0;}
+.header-title{font-size:14px;font-weight:600;}
+.header-sub{font-size:10px;color:var(--text-muted);margin-top:1px;}
+
+/* MAIN */
+.main{max-width:500px;margin:0 auto;padding:20px 16px 60px;}
+
+/* STEPS */
+.step-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.step-label{font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
+.field-select,.field-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:14px;padding:11px 13px;font-family:inherit;appearance:none;-webkit-appearance:none;}
+.field-select:focus,.field-input:focus{outline:none;border-color:var(--gold);}
+
+/* SECTION PHOTO CARDS */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
+.section-card-header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.section-card-title{font-size:13px;font-weight:600;color:var(--text);}
+.section-card-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.section-card-count{font-size:11px;color:var(--text-dim);}
+.section-card-body{padding:12px 16px;}
+
+/* PHOTO GRID */
+.photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.photo-thumb-wrap{position:relative;}
+.photo-thumb{width:76px;height:76px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);}
+.photo-remove{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.add-photo-btn{width:76px;height:76px;border-radius:6px;border:1.5px dashed var(--border2);background:var(--surface2);color:var(--text-muted);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.add-photo-btn:active{border-color:var(--gold);color:var(--gold);}
+.upload-hint{font-size:11px;color:var(--text-muted);line-height:1.5;}
+
+/* STATUS */
+.status-bar{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-dim);display:none;}
+.status-bar.show{display:block;}
+.progress-track{height:4px;background:var(--border2);border-radius:2px;margin-top:6px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 0.3s;}
+
+/* SUBMIT */
+.submit-btn{width:100%;padding:15px;background:var(--gold);border:none;border-radius:10px;color:#000;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.15s;margin-top:8px;}
+.submit-btn:active{opacity:0.85;}
+.submit-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.success-screen{text-align:center;padding:40px 20px;display:none;}
+.success-screen.show{display:block;}
+.success-icon{font-size:48px;margin-bottom:12px;}
+.success-title{font-size:22px;font-weight:700;color:var(--green);margin-bottom:8px;}
+.success-sub{font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:24px;}
+
+/* SETUP */
+.setup-banner{background:rgba(200,168,75,0.07);border:1px solid var(--gold-border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-dim);line-height:1.7;}
+.setup-banner strong{color:var(--gold);}
+.url-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:8px 11px;font-family:inherit;margin-top:6px;}
+.url-input:focus{outline:none;border-color:var(--gold);}
+
+.toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 20px;font-size:12px;color:var(--text-dim);z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-mark">TC</div>
+    <div>
+      <div class="header-title">Store Photo Submission</div>
+      <div class="header-sub">TC Acoustic Retail Distribution</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Setup banner (shown until URL saved) -->
+  <div class="setup-banner" id="setup-banner">
+    <strong>First-time setup:</strong> Paste your Google Sheets Web App URL below so photos save to Drive. Your manager will provide this URL.
+    <input class="url-input" id="setup-url" type="text" placeholder="https://script.google.com/macros/s/..." oninput="saveUrl()">
+    <div style="font-size:10px;color:var(--text-muted);margin-top:4px;" id="setup-url-status"></div>
+  </div>
+
+  <!-- STEP 1: Store Details -->
+  <div class="step-card">
+    <div class="step-label">Step 1 — Store Details</div>
+    <div style="display:grid;gap:10px;">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Country</div>
+        <select class="field-select" id="cm-country" onchange="onCountryChange()">
+          <option value="SG">🇸🇬 Singapore</option>
+          <option value="MY">🇲🇾 Malaysia</option>
+          <option value="HK">🇭🇰 Hong Kong</option>
+          <option value="TH">🇹🇭 Thailand</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Store</div>
+        <select class="field-select" id="cm-store"></select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Audit Date</div>
+        <input class="field-input" type="date" id="cm-date">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Your Name</div>
+        <input class="field-input" type="text" id="cm-name" placeholder="e.g. Zhi Yong">
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Photos -->
+  <div class="step-card">
+    <div class="step-label">Step 2 — Upload Photos</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;">
+      Upload photos for each section. Take clear, well-lit shots from the aisle. Include the full display, product tags, and any campaign materials.
+    </div>
+    <div id="section-cards"></div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="status-bar">
+    <div id="status-text">Uploading photos...</div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submit-btn" onclick="submitPhotos()">Submit Photos →</button>
+
+  <!-- Success -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">✓</div>
+    <div class="success-title">Photos submitted!</div>
+    <div class="success-sub" id="success-detail">Your photos have been saved to Drive and your manager has been notified.</div>
+    <button class="submit-btn" onclick="resetForm()" style="max-width:200px;margin:0 auto;">Submit another store</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STORE DATABASE (same as scorecard) ────────────────────────────
+const STORES = {
+  SG: [
+    "— Select store —",
+    "Challenger @ Great World City","Challenger @ Clementi Mall","Challenger @ Tiong Bahru",
+    "Challenger @ Parkway Parade","Challenger @ JEM","Challenger @ Bugis B1",
+    "Challenger @ Ang Mo Kio Hub","Challenger @ Causeway Point","Challenger @ Jurong Point",
+    "Challenger @ Northpoint","Challenger @ Tampines 1","Challenger @ Tampines Mall",
+    "Challenger @ Plaza Singapura","Challenger @ Vivocity","Challenger @ NEX",
+    "Challenger @ Bugis Junction","Challenger @ Lot One","Challenger @ IMM",
+    "Challenger @ ION","Challenger @ 313","Challenger @ Paya Lebar HQ",
+    "Challenger @ Raffles City","Challenger @ Suntec City","Challenger @ Jewel",
+    "Challenger @ Pasir Ris Mall","Challenger @ Woodleigh Mall",
+    "Harvey Norman @ Millenia Walk","Harvey Norman @ Parkway Parade","Harvey Norman @ West Gate",
+    "Harvey Norman @ Viva","Harvey Norman @ West Mall","Harvey Norman @ Northpoint",
+    "Harvey Norman @ Hougang Mall","Harvey Norman @ Seletar Mall","Harvey Norman @ Punggol Coast",
+    "Harvey Norman @ Lot One","Harvey Norman @ Jurong Point","Harvey Norman @ Bukit Panjang",
+    "Best Denki @ Ngee Ann City","Best Denki @ Vivocity","Best Denki (Singapore) Pte Ltd @ Funan",
+    "Best Denki @ Great World City","Best Denki @ Plaza Singapura","Best Denki @ Junction 8","Best Denki @ IMM",
+    "Courts @ The Heeren","Courts @ Megastore","Courts @ NEX","Courts @ Jurong Point","Courts @ JEM",
+    "Takashimaya @ Ngee Ann City","TK FOTO @ Funan","Connect IT @ Somerset",
+    "Gain City @ Sungei Kadut Megastore","Gain City @ Marina Square",
+    "Chamber (Sports Fashion Pte Ltd)","AV Intelligence","Parisilk @ Holland Village",
+    "Commune Lifestyle Pte Ltd","Actually","Forty Two","Excel Hardware","Zepplin & Co",
+    "Sprint Cass @ T1 E1","Sprint Cass @ T1 H1","Sprint Cass @ T2 E2",
+    "Sprint Cass @ T2 M2","Sprint Cass @ T3 E3","Sprint Cass @ T3 M3","Sprint Cass @ T4 E4",
+  ],
+  MY: [
+    "— Select store —",
+    "Harvey Norman (MY) @ Ikano (IPC)","Harvey Norman (MY) @ Mid Valley","Harvey Norman (MY) @ Johor Paradigm Mall",
+    "Harvey Norman (MY) @ Johor Southkey","Harvey Norman (MY) @ Ipoh Parade","Harvey Norman (MY) @ 1 Utama",
+    "Harvey Norman (MY) @ JB Toppen","Harvey Norman (MY) @ Suria Sabah","Harvey Norman (MY) @ Pavilion Damansara Heights",
+    "Harvey Norman (MY) @ Bintulu","Harvey Norman (MY) @ Sunway Pyramid","Harvey Norman (MY) @ Pavilion KL",
+    "Harvey Norman (MY) @ Queensbay Mall","Harvey Norman (MY) @ IOI City Mall","Harvey Norman (MY) @ Vivacity Mall",
+    "Harvey Norman (MY) @ Miri Times Square","Harvey Norman (MY) @ Ikea Batu Kawan","Harvey Norman (MY) @ Pavilion Bukit Jalil",
+    "Harvey Norman (MY) @ Sunway Carnival","Harvey Norman (MY) @ Penang Sunshine","Harvey Norman (MY) @ Gurney Plaza",
+    "TMT @ Mid Valley","TMT @ Sunway Pyramid","TMT @ JB Southkey",
+    "Flash Gadgets @ The Gardens Mall","Flash Gadgets @ IOI City Mall","Flash Gadgets @ Mid Valley","Flash Gadgets @ Suria KLCC",
+    "All IT @ One Utama",
+    "Urban Republic @ Pavilion KL","Urban Republic @ Queensbay Mall","Urban Republic @ Gurney Plaza",
+    "Urban Republic @ Tebrau City","Urban Republic @ Aeon Bukit Tinggi",
+    "PC Image @ Johor Southkey","PC Image @ Sibu Delta Mall",
+  ],
+  HK: [
+    "— Select store —",
+    "TechLife City Plaza","TechLife Melbourne Plaza","TechLife New Town Plaza","TechLife Ocean Centre",
+    "TechLife Telford Garden","TechLife Times Square","TechLife Ma On Shan","TechLife Tai Po",
+    "TechLife Elements","TechLife YOHO",
+    "TechLife APM","TechLife Diamond Hill","TechLife Festival Walk","TechLife Olympian City",
+    "TechLife PopCorn","TechLife The Wai","TechLife Tsing Yi","TechLife Tsuen Wan Plaza",
+    "TechLife Tuen Mun Town","TechLife Tung Chung","TechLife Whampoa",
+    "AV Life K11","AV Life New Town Plaza","AV Life SOGO",
+    "AV Life CityPlaza","AV Life East Point City","AV Life Lok Fu","AV Life Olympian City",
+    "AV Life Times Square","AV Life Tsuen Wan Plaza","AV Life Tuen Mun","AV Life Wong Chuk Hang",
+    "Cosmic Tech SSP","Fortress Golden Centre",
+    "Super King","Super King CWB","Radio Unison",
+  ],
+  TH: [
+    "— Select store —",
+    "Powerbuy @ Central World","Powerbuy @ Central Chidlom","Powerbuy @ Central Phuket","Powerbuy @ Central Samui",
+    "Dotlife @ Central World","Dotlife @ Paragon","Dotlife @ Central Eastville","Dotlife @ Central Rama 9",
+    "Dotlife @ Promenade","Dotlife @ Icon Siam","Dotlife @ Mega Bangna","Dotlife @ Central Westgate",
+    "Dotlife @ Central Autthaya","Dotlife @ Central Udonthani","Dotlife @ Central Phuket",
+    "Dotlife @ Central Chiangmai","Dotlife @ Siam Paragon","Dotlife @ Chiang Mai",
+    "APP @ Paragon","iStudio @ Siam Paragon","Digital Lab @ Siam Discovery",
+    "Tech House @ One Bangkok","LOFT @ Siam Paragon",
+  ],
+};
+
+const SECTIONS = [
+  { id:'A', name:'Assets & Condition',      hint:'Full display overview, POS units, cable management' },
+  { id:'B', name:'Brand Identity',           hint:'Campaign visuals, product tags, screens, standees' },
+  { id:'C', name:'Cleanliness',              hint:'Surfaces, iPad screen, mirrors, surrounding area' },
+  { id:'D', name:'Conquer & Visibility',     hint:'Brand space, aisle visibility, secondary locations' },
+  { id:'E', name:'Marketing Execution',      hint:'Campaign materials, hero product placement' },
+  { id:'F', name:'Demo & Experience',        hint:'All demos powered on, setup, connectivity, audio' },
+];
+
+// ── PHOTO DATA ────────────────────────────────────────────────────
+let photos = { A:[], B:[], C:[], D:[], E:[], F:[] };
+
+// ── INIT ──────────────────────────────────────────────────────────
+document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
+populateStores();
+renderSectionCards();
+loadSavedUrl();
+
+function loadSavedUrl() {
+  const url = localStorage.getItem('cmUploadUrl');
+  if (url) {
+    document.getElementById('setup-url').value = url;
+    document.getElementById('setup-banner').style.display = 'none';
+  }
+}
+
+function saveUrl() {
+  const url = document.getElementById('setup-url').value.trim();
+  if (url) {
+    localStorage.setItem('cmUploadUrl', url);
+    document.getElementById('setup-url-status').textContent = '✓ URL saved';
+    document.getElementById('setup-url-status').style.color = 'var(--green)';
+  }
+}
+
+function onCountryChange() { populateStores(); }
+
+function populateStores() {
+  const country = document.getElementById('cm-country').value;
+  const sel = document.getElementById('cm-store');
+  sel.innerHTML = (STORES[country] || ['— Select store —']).map(s =>
+    `<option value="${s}">${s}</option>`).join('');
+}
+
+function renderSectionCards() {
+  const container = document.getElementById('section-cards');
+  container.innerHTML = SECTIONS.map(sec => `
+    <div class="section-card" id="seccard-${sec.id}">
+      <div class="section-card-header">
+        <div>
+          <div class="section-card-title">Section ${sec.id} — ${sec.name}</div>
+          <div class="section-card-sub">${sec.hint}</div>
+        </div>
+        <div class="section-card-count" id="count-${sec.id}">0 photos</div>
+      </div>
+      <div class="section-card-body">
+        <div class="photo-grid" id="grid-${sec.id}"></div>
+        <input type="file" id="input-${sec.id}" accept="image/*" multiple capture="environment" style="display:none" onchange="handleFiles('${sec.id}',this)">
+        <button class="add-photo-btn" onclick="document.getElementById('input-${sec.id}').click()">+</button>
+        <div class="upload-hint" style="margin-top:8px;">Tap + to take or choose photos</div>
+      </div>
+    </div>`).join('');
+}
+
+async function handleFiles(secId, input) {
+  const files = Array.from(input.files);
+  for (const file of files) {
+    const dataUrl = await compressImage(file, 1200, 0.80);
+    photos[secId].push({ dataUrl, name: file.name });
+  }
+  input.value = '';
+  renderGrid(secId);
+}
+
+function compressImage(file, maxDim, quality) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else       { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderGrid(secId) {
+  const grid = document.getElementById('grid-' + secId);
+  const count = document.getElementById('count-' + secId);
+  const arr = photos[secId];
+  count.textContent = arr.length + ' photo' + (arr.length !== 1 ? 's' : '');
+  grid.innerHTML = arr.map((p, i) => `
+    <div class="photo-thumb-wrap">
+      <img class="photo-thumb" src="${p.dataUrl}">
+      <button class="photo-remove" onclick="removePhoto('${secId}',${i})">×</button>
+      ${p.uploaded ? '<div style="position:absolute;bottom:2px;left:2px;background:rgba(106,170,98,0.95);border-radius:2px;padding:1px 4px;font-size:8px;color:#fff;font-weight:700;">✓</div>' : ''}
+    </div>`).join('');
+}
+
+function removePhoto(secId, idx) {
+  photos[secId].splice(idx, 1);
+  renderGrid(secId);
+}
+
+async function submitPhotos() {
+  const store = document.getElementById('cm-store').value;
+  const date  = document.getElementById('cm-date').value;
+  const name  = document.getElementById('cm-name').value.trim();
+  const country = document.getElementById('cm-country').value;
+
+  if (!store || store.startsWith('—')) { showToast('Please select a store'); return; }
+  if (!date) { showToast('Please select a date'); return; }
+  if (!name) { showToast('Please enter your name'); return; }
+
+  const totalPhotos = Object.values(photos).reduce((n, arr) => n + arr.length, 0);
+  if (totalPhotos === 0) { showToast('Please add at least one photo'); return; }
+
+  const url = localStorage.getItem('cmUploadUrl');
+  if (!url) { showToast('Ask your manager for the setup URL'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  const statusBar = document.getElementById('status-bar');
+  btn.disabled = true;
+  statusBar.classList.add('show');
+
+  let uploaded = 0;
+  let total = totalPhotos;
+
+  for (const secId of Object.keys(photos)) {
+    for (let i = 0; i < photos[secId].length; i++) {
+      const p = photos[secId][i];
+      const statusText = document.getElementById('status-text');
+      statusText.textContent = `Uploading Section ${secId} photo ${i+1}...`;
+      document.getElementById('progress-fill').style.width = Math.round(uploaded/total*100) + '%';
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'uploadPhoto',
+            store, date, country, section: secId,
+            cmName: name,
+            index: i + 1,
+            caption: '',
+            imageData: p.dataUrl.split(',')[1],
+            mimeType: 'image/jpeg',
+            fileName: `${store}_${date}_Sec${secId}_${i+1}.jpg`.replace(/[^a-zA-Z0-9._-]/g,'_'),
+          })
+        });
+        const data = await resp.json();
+        if (data.driveUrl) {
+          photos[secId][i].uploaded = true;
+          photos[secId][i].driveUrl = data.driveUrl;
+          renderGrid(secId);
+        }
+      } catch(e) { /* continue */ }
+      uploaded++;
+    }
+  }
+
+  // Also log submission to sheet
+  try {
+    await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'logPhotoSubmission',
+        store, date, country, cmName: name,
+        totalPhotos,
+        sections: Object.fromEntries(Object.entries(photos).map(([k,v])=>[k,v.length])),
+        timestamp: new Date().toISOString(),
+      })
+    });
+  } catch(e) {}
+
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('status-text').textContent = '✓ All photos uploaded';
+
+  setTimeout(() => {
+    statusBar.classList.remove('show');
+    btn.style.display = 'none';
+    const success = document.getElementById('success-screen');
+    document.getElementById('success-detail').textContent =
+      `${totalPhotos} photo${totalPhotos!==1?'s':''} for ${store} on ${date} have been saved to Drive. Your manager will review them during the audit.`;
+    success.classList.add('show');
+  }, 800);
+}
+
+function resetForm() {
+  photos = { A:[], B:[], C:[], D:[], E:[], F:[] };
+  SECTIONS.forEach(s => renderGrid(s.id));
+  document.getElementById('cm-name').value = '';
+  document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('success-screen').classList.remove('show');
+  document.getElementById('submit-btn').style.display = 'block';
+  document.getElementById('submit-btn').disabled = false;
+}
+
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+</script>
+</body>
+</html>

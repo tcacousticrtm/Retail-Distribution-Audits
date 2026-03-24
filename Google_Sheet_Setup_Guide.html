@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retail Audit — Google Sheet Setup Guide</title>
+<style>
+  :root {
+    --gold: #C8A84B; --gold-bg: rgba(200,168,75,0.09); --gold-border: rgba(200,168,75,0.22);
+    --bg: #0a0a0a; --surface: #111; --surface2: #161616;
+    --border: #222; --border2: #2a2a2a;
+    --text: #e8e0d0; --text-dim: #888; --text-muted: #555;
+    --green: #6aaa62; --blue: #7aa8b8; --amber: #b8965a; --purple: #9a7ab8; --red: #c06060;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #333; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; }
+  .header-inner { max-width: 820px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 26px; height: 26px; background: var(--gold); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #000; }
+  .logo-text { font-size: 13px; font-weight: 600; }
+  .logo-sub { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+  .main { max-width: 820px; margin: 0 auto; padding: 28px 32px 80px; }
+
+  .intro { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px; }
+  .intro-title { font-size: 13px; font-weight: 600; color: var(--gold); margin-bottom: 6px; }
+  .intro-desc { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+  .step-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; background: var(--surface); }
+  .step-num { width: 28px; height: 28px; background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+  .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .step-body { padding: 0 18px 16px 60px; font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+  .step-body p { margin-bottom: 8px; }
+  .step-body strong { color: var(--text); }
+
+  .code-wrap { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 16px 18px; margin: 10px 0; position: relative; }
+  .code-wrap pre { font-family: 'Courier New', monospace; font-size: 11px; color: var(--green); line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; padding: 4px 10px; background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 4px; color: var(--gold); font-size: 10px; cursor: pointer; }
+  .copy-btn:hover { background: rgba(200,168,75,0.16); }
+
+  .note { background: rgba(184,150,90,0.08); border: 1px solid rgba(184,150,90,0.2); border-radius: 5px; padding: 8px 12px; font-size: 11px; color: var(--amber); line-height: 1.6; margin: 8px 0; }
+  .tip  { background: rgba(106,170,98,0.08); border: 1px solid rgba(106,170,98,0.2); border-radius: 5px; padding: 8px 12px; font-size: 11px; color: var(--green); line-height: 1.6; margin: 8px 0; }
+
+  .sheet-preview { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; margin: 10px 0; }
+  .sheet-tab-row { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .sheet-tab { padding: 6px 14px; font-size: 10px; border-right: 1px solid var(--border); }
+  .sheet-tab.active { background: rgba(106,170,98,0.1); color: var(--green); }
+  .sheet-tab.dash { background: rgba(200,168,75,0.08); color: var(--gold); }
+  .mini-table { width: 100%; font-size: 10px; border-collapse: collapse; }
+  .mini-table th { background: #1a1a1a; padding: 5px 8px; text-align: left; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .mini-table td { padding: 5px 8px; border-bottom: 1px solid #141414; color: var(--text-dim); white-space: nowrap; }
+  .mini-table .formula { color: var(--green); font-family: monospace; }
+
+  .divider { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin: 24px 0 12px; display: flex; align-items: center; gap: 10px; }
+  .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .dashboard-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .dash-block { background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 10px 12px; }
+  .dash-block-title { font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+  .dash-block-formula { font-family: monospace; font-size: 10px; color: var(--green); line-height: 1.6; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 18px; font-size: 12px; color: var(--text-dim); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">TC</div>
+      <div>
+        <div class="logo-text">Retail Distribution Audit</div>
+        <div class="logo-sub">Google Sheet Setup Guide</div>
+      </div>
+    </div>
+    <span style="font-size:10px;color:var(--text-muted);">One-time setup · ~10 minutes</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="intro">
+    <div class="intro-title">What this sets up</div>
+    <div class="intro-desc">
+      Paste one script into Google Apps Script and run it once. It automatically creates two sheets:
+      <strong style="color:var(--text)"> Raw Data</strong> (every audit submission lands here as a new row) and
+      <strong style="color:var(--text)"> Dashboard</strong> (auto-calculated summary with scores by country, brand, CM, grade distribution, and recent audits — updates live as new data comes in).
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">1</div><div class="step-title">Create a new Google Sheet</div></div>
+    <div class="step-body">
+      <p>Go to <strong>sheets.google.com</strong> → create a blank spreadsheet → name it <strong>Retail Distribution Audit Results</strong>.</p>
+      <p>Leave it empty — the script in Step 3 will create both tabs and all headers automatically.</p>
+      <div class="note">⚠ Keep this sheet separate from the TC Direct Store Audit sheet. They each need their own Apps Script deployment.</div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">2</div><div class="step-title">Open Apps Script</div></div>
+    <div class="step-body">
+      <p>In your new Google Sheet: <strong>Extensions → Apps Script</strong></p>
+      <p>Delete any existing code in the editor. Then paste the full script below.</p>
+    </div>
+  </div>
+
+  <!-- STEP 3 — THE SCRIPT -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">3</div><div class="step-title">Paste the full script</div></div>
+    <div class="step-body">
+      <p>This single script handles everything: receiving audit data, setting up both sheets, and building the Dashboard formulas.</p>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyScript()">Copy</button>
+        <pre id="script-block">// ─────────────────────────────────────────────────────────────────
+// RETAIL DISTRIBUTION AUDIT — Google Apps Script
+// Paste into Extensions → Apps Script, Save, then run setupSheets()
+// once. Then deploy as Web App for live data from the scorecard.
+// ─────────────────────────────────────────────────────────────────
+
+const RAW_SHEET  = "Raw Data";
+const DASH_SHEET = "Dashboard";
+
+// ── RECEIVE AUDIT DATA (called by scorecard Submit button) ────────
+function doPost(e) {
+  try {
+    var ss   = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
+
+    // ── PHOTO UPLOAD ──────────────────────────────────────────────
+    if (data.action === 'uploadPhoto') {
+      var folder = getOrCreateFolder(data.store, data.date, data.section);
+      var blob   = Utilities.newBlob(
+        Utilities.base64Decode(data.imageData),
+        data.mimeType || 'image/jpeg',
+        data.fileName || 'photo.jpg'
+      );
+      var file = folder.createFile(blob);
+      file.setDescription(data.caption || '');
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status:'success', driveUrl: file.getUrl() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── SAVE COMMENT ─────────────────────────────────────────────
+    if (data.action === 'saveComment') {
+      var cSheet = ss.getSheetByName('Comments') || ss.insertSheet('Comments');
+      if (cSheet.getLastRow() === 0) {
+        cSheet.appendRow(['Timestamp','AuditKey','Store','Date','Section','CriterionID','Comment','Author','Resolved','ReplyTo']);
+      }
+      cSheet.appendRow([
+        new Date().toISOString(),
+        data.auditKey, data.store, data.auditDate,
+        data.section, data.criterionId,
+        data.comment, data.author,
+        data.resolved || false,
+        data.replyTo || ''
+      ]);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status:'success' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── RESOLVE COMMENT ──────────────────────────────────────────
+    if (data.action === 'resolveComment') {
+      var cSheet = ss.getSheetByName('Comments');
+      if (cSheet) {
+        var rows = cSheet.getDataRange().getValues();
+        for (var i = 1; i < rows.length; i++) {
+          if (rows[i][1] === data.auditKey && rows[i][5] === data.criterionId && rows[i][7] === data.author) {
+            cSheet.getRange(i+1, 9).setValue(true);
+          }
+        }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status:'success' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── LOG PHOTO SUBMISSION (from CM upload page) ────────────────
+    if (data.action === 'logPhotoSubmission') {
+      var pLog = ss.getSheetByName('Photo Log') || ss.insertSheet('Photo Log');
+      if (pLog.getLastRow() === 0) {
+        pLog.appendRow(['Timestamp','Store','Date','Country','CM Name','Total Photos','Sec A','Sec B','Sec C','Sec D','Sec E','Sec F']);
+      }
+      var secs = data.sections || {};
+      pLog.appendRow([
+        new Date().toISOString(), data.store, data.date, data.country, data.cmName,
+        data.totalPhotos, secs.A||0, secs.B||0, secs.C||0, secs.D||0, secs.E||0, secs.F||0
+      ]);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status:'success' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var sheet = ss.getSheetByName(RAW_SHEET) || ss.insertSheet(RAW_SHEET);
+    sheet.appendRow([
+      new Date().toISOString(),
+      data.countryLabel || data.country,
+      data.store, data.brand, data.tier, data.cm,
+      data.auditor, data.date, data.type,
+      data.scoreA ?? '', data.scoreB ?? '', data.scoreC ?? '',
+      data.scoreD ?? '', data.scoreE ?? '', data.scoreF ?? '',
+      data.overall, data.grade, data.passed, data.total,
+      data.failedItems, data.actions
+    ]);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status:'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status:'error', message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── RETURN AUDIT SCORES ───────────────────────────────────────
+  if (e && e.parameter && e.parameter.action === 'getScores') {
+    var sheet = ss.getSheetByName(RAW_SHEET);
+    if (!sheet) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+    var rows = sheet.getDataRange().getValues();
+    var headers = rows[0];
+    var data = rows.slice(1).map(function(row) {
+      var obj = {};
+      headers.forEach(function(h, i) { obj[h] = row[i]; });
+      return {
+        store: obj['Store'] || '', country: obj['Country'] || '',
+        brand: obj['Brand'] || '', tier: obj['Tier'] || '',
+        cm: obj['Channel Manager'] || '', auditor: obj['Auditor'] || '',
+        date: obj['Audit Date'] ? Utilities.formatDate(new Date(obj['Audit Date']), 'GMT+8', 'yyyy-MM-dd') : '',
+        overall: obj['Overall %'] || null, grade: obj['Grade'] || '',
+        scoreA: obj['Sec A %'] || null, scoreB: obj['Sec B %'] || null,
+        scoreC: obj['Sec C %'] || null, scoreD: obj['Sec D %'] || null,
+        scoreE: obj['Sec E %'] || null, scoreF: obj['Sec F %'] || null,
+      };
+    }).filter(function(r) { return r.store; });
+    return ContentService
+      .createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ── RETURN PHOTOS FOR AN AUDIT ───────────────────────────────
+  if (e && e.parameter && e.parameter.action === 'getPhotos') {
+    var photos = [];
+    var key = e.parameter.auditKey || '';
+    var section = e.parameter.section || '';
+    // Parse store and date from auditKey (format: store|date)
+    var parts = key.split('|');
+    var filterStore = parts[0] || '';
+    var filterDate  = parts[1] || '';
+    // Search Drive folder: Retail Distribution Audits / store / date /
+    try {
+      var roots = DriveApp.getFoldersByName('Retail Distribution Audits');
+      if (roots.hasNext()) {
+        var root = roots.next();
+        var storeFolders = filterStore ? root.getFoldersByName(filterStore) : root.getFolders();
+        while (storeFolders.hasNext()) {
+          var sf = storeFolders.next();
+          var dateFolders = filterDate ? sf.getFoldersByName(filterDate) : sf.getFolders();
+          while (dateFolders.hasNext()) {
+            var df = dateFolders.next();
+            var secFolders = section ? df.getFoldersByName('Section ' + section) : df.getFolders();
+            while (secFolders.hasNext()) {
+              var secF = secFolders.next();
+              var secId = secF.getName().replace('Section ','');
+              var files = secF.getFiles();
+              while (files.hasNext()) {
+                var file = files.next();
+                photos.push({
+                  section: secId,
+                  fileName: file.getName(),
+                  driveUrl: file.getDownloadUrl(),
+                  viewUrl: file.getUrl(),
+                  caption: file.getDescription() || '',
+                  auditKey: key,
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch(err) {}
+    return ContentService
+      .createTextOutput(JSON.stringify(photos))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  if (e && e.parameter && e.parameter.action === 'getComments') {
+    var cSheet = ss.getSheetByName('Comments');
+    if (!cSheet) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+    var rows = cSheet.getDataRange().getValues();
+    var key = e.parameter.auditKey;
+    var comments = rows.slice(1)
+      .filter(function(r) { return !key || r[1] === key; })
+      .map(function(r) { return {
+        timestamp: r[0], auditKey: r[1], store: r[2], auditDate: r[3],
+        section: r[4], criterionId: r[5], comment: r[6],
+        author: r[7], resolved: r[8], replyTo: r[9]
+      }; });
+    return ContentService
+      .createTextOutput(JSON.stringify(comments))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService
+    .createTextOutput("Retail Distribution Audit endpoint is live.")
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
+// ── DRIVE FOLDER HELPER ───────────────────────────────────────────
+function getOrCreateFolder(store, date, section) {
+  var rootName = 'Retail Distribution Audits';
+  var roots = DriveApp.getFoldersByName(rootName);
+  var root = roots.hasNext() ? roots.next() : DriveApp.createFolder(rootName);
+
+  var storeFolders = root.getFoldersByName(store);
+  var storeFolder = storeFolders.hasNext() ? storeFolders.next() : root.createFolder(store);
+
+  var dateFolders = storeFolder.getFoldersByName(date);
+  var dateFolder = dateFolders.hasNext() ? dateFolders.next() : storeFolder.createFolder(date);
+
+  var secFolders = dateFolder.getFoldersByName('Section ' + section);
+  return secFolders.hasNext() ? secFolders.next() : dateFolder.createFolder('Section ' + section);
+}
+
+// ── ONE-TIME SETUP (run manually once after pasting) ──────────────
+function setupSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── RAW DATA SHEET ──────────────────────────────────────────────
+  let raw = ss.getSheetByName(RAW_SHEET);
+  if (!raw) raw = ss.insertSheet(RAW_SHEET);
+  raw.clearContents();
+
+  const rawHeaders = [
+    "Timestamp","Country","Store","Brand","Tier","Channel Manager",
+    "Auditor","Audit Date","Type",
+    "Sec A %","Sec B %","Sec C %","Sec D %","Sec E %","Sec F %",
+    "Overall %","Grade","Items Passed","Total Items",
+    "Failed Items","Action Items"
+  ];
+  raw.getRange(1, 1, 1, rawHeaders.length).setValues([rawHeaders]);
+
+  // Style header row
+  const rawHeaderRange = raw.getRange(1, 1, 1, rawHeaders.length);
+  rawHeaderRange.setBackground("#1a1a1a").setFontColor("#C8A84B")
+    .setFontWeight("bold").setFontSize(10);
+  raw.setFrozenRows(1);
+  raw.setColumnWidth(1, 160);  // Timestamp
+  raw.setColumnWidth(2, 100);  // Country
+  raw.setColumnWidth(3, 220);  // Store
+  raw.setColumnWidth(4, 80);   // Brand
+  raw.setColumnWidth(5, 80);   // Tier
+  raw.setColumnWidth(6, 120);  // CM
+  raw.setColumnWidth(7, 100);  // Auditor
+  raw.setColumnWidth(8, 100);  // Date
+  raw.setColumnWidth(20, 300); // Failed Items
+  raw.setColumnWidth(21, 200); // Actions
+
+  // ── DASHBOARD SHEET ─────────────────────────────────────────────
+  let dash = ss.getSheetByName(DASH_SHEET);
+  if (!dash) dash = ss.insertSheet(DASH_SHEET, 0); // first tab
+  else dash.clearContents();
+
+  const D = dash;
+  const raw_name = RAW_SHEET;
+
+  function h1(row, col, text) {
+    D.getRange(row, col).setValue(text)
+      .setFontSize(14).setFontWeight("bold").setFontColor("#C8A84B");
+  }
+  function h2(row, col, text, color) {
+    D.getRange(row, col).setValue(text)
+      .setFontSize(10).setFontWeight("bold").setFontColor(color || "#888888");
+  }
+  function label(row, col, text) {
+    D.getRange(row, col).setValue(text).setFontColor("#666666").setFontSize(10);
+  }
+  function formula(row, col, f) {
+    D.getRange(row, col).setFormula(f).setFontColor("#E8E0D0").setFontSize(11).setFontWeight("bold");
+  }
+  function sectionBg(r1, c1, r2, c2, color) {
+    D.getRange(r1, c1, r2-r1+1, c2-c1+1).setBackground(color);
+  }
+
+  // Title
+  D.getRange("A1").setValue("RETAIL DISTRIBUTION AUDIT — DASHBOARD")
+    .setFontSize(16).setFontWeight("bold").setFontColor("#C8A84B");
+  D.getRange("A2").setFormula('="Last updated: "&TEXT(NOW(),"dd mmm yyyy HH:MM")')
+    .setFontSize(9).setFontColor("#555555");
+
+  // ── KEY STATS (row 4) ──────────────────────────────────────────
+  h2(4, 1, "KEY STATS");
+  const statLabels = ["Total Audits","Avg Score","Gold Stores","Gold Rate","Needs Attention (D/E)"];
+  const statFormulas = [
+    `=COUNTA('${raw_name}'!C2:C)`,
+    `=IFERROR(TEXT(AVERAGE('${raw_name}'!P2:P),"0")&"%","—")`,
+    `=COUNTIF('${raw_name}'!Q2:Q,"Gold")`,
+    `=IFERROR(TEXT(COUNTIF('${raw_name}'!Q2:Q,"Gold")/COUNTA('${raw_name}'!Q2:Q),"0%"),"—")`,
+    `=COUNTIF('${raw_name}'!Q2:Q,"D")+COUNTIF('${raw_name}'!Q2:Q,"E")`,
+  ];
+  statLabels.forEach((l, i) => {
+    label(5, i+1, l);
+    formula(6, i+1, statFormulas[i]);
+    D.getRange(6, i+1).setFontSize(16).setFontColor("#C8A84B");
+  });
+  sectionBg(4, 1, 6, 5, "#141414");
+  D.getRange("A4:E4").setBackground("#1A1A1A");
+
+  // ── GRADE DISTRIBUTION (row 8) ────────────────────────────────
+  h2(8, 1, "GRADE DISTRIBUTION");
+  const grades = ["Gold","A","B","C","D","E"];
+  const gradeColors = ["#C8A84B","#7aa8b8","#6aaa62","#b8965a","#e08030","#c06060"];
+  grades.forEach((g, i) => {
+    D.getRange(9, i+1).setValue(g).setFontWeight("bold").setFontColor(gradeColors[i]).setFontSize(13);
+    D.getRange(10, i+1).setFormula(`=COUNTIF('${raw_name}'!Q2:Q,"${g}")`)
+      .setFontSize(18).setFontWeight("bold").setFontColor(gradeColors[i]);
+    D.getRange(11, i+1).setFormula(`=IFERROR(TEXT(COUNTIF('${raw_name}'!Q2:Q,"${g}")/COUNTA('${raw_name}'!Q2:Q),"0%"),"—")`)
+      .setFontSize(10).setFontColor("#666666");
+  });
+  sectionBg(8, 1, 11, 6, "#141414");
+  D.getRange("A8:F8").setBackground("#1A1A1A");
+
+  // ── BY COUNTRY (row 13) ───────────────────────────────────────
+  h2(13, 1, "BY COUNTRY");
+  ["Country","Audits","Avg Score","Gold","Gold Rate"].forEach((h, i) => {
+    D.getRange(14, i+1).setValue(h).setFontColor("#888888").setFontSize(9).setFontWeight("bold");
+  });
+  const countries = ["Singapore","Malaysia","Hong Kong","Thailand"];
+  countries.forEach((c, i) => {
+    const r = 15 + i;
+    D.getRange(r, 1).setValue(c).setFontColor("#E8E0D0").setFontSize(10);
+    D.getRange(r, 2).setFormula(`=COUNTIF('${raw_name}'!B2:B,"${c}")`).setFontColor("#888888").setFontSize(10);
+    D.getRange(r, 3).setFormula(`=IFERROR(TEXT(AVERAGEIF('${raw_name}'!B2:B,"${c}",'${raw_name}'!P2:P),"0")&"%","—")`).setFontColor("#C8A84B").setFontSize(11).setFontWeight("bold");
+    D.getRange(r, 4).setFormula(`=COUNTIFS('${raw_name}'!B2:B,"${c}",'${raw_name}'!Q2:Q,"Gold")`).setFontColor("#C8A84B").setFontSize(10);
+    D.getRange(r, 5).setFormula(`=IFERROR(TEXT(COUNTIFS('${raw_name}'!B2:B,"${c}",'${raw_name}'!Q2:Q,"Gold")/COUNTIF('${raw_name}'!B2:B,"${c}"),"0%"),"—")`).setFontColor("#888888").setFontSize(10);
+  });
+  sectionBg(13, 1, 19, 5, "#141414");
+  D.getRange("A13:E13").setBackground("#1A1A1A");
+
+  // ── BY BRAND (col 7, row 13) ──────────────────────────────────
+  h2(13, 7, "BY BRAND");
+  ["Brand","Audits","Avg Score","Gold","Gold Rate"].forEach((h, i) => {
+    D.getRange(14, 7+i).setValue(h).setFontColor("#888888").setFontSize(9).setFontWeight("bold");
+  });
+  const brands = ["Sonos","Marshall","Bowers & Wilkins"];
+  brands.forEach((b, i) => {
+    const r = 15 + i;
+    D.getRange(r, 7).setValue(b).setFontColor("#E8E0D0").setFontSize(10);
+    D.getRange(r, 8).setFormula(`=COUNTIF('${raw_name}'!D2:D,"${b}")`).setFontColor("#888888").setFontSize(10);
+    D.getRange(r, 9).setFormula(`=IFERROR(TEXT(AVERAGEIF('${raw_name}'!D2:D,"${b}",'${raw_name}'!P2:P),"0")&"%","—")`).setFontColor("#C8A84B").setFontSize(11).setFontWeight("bold");
+    D.getRange(r, 10).setFormula(`=COUNTIFS('${raw_name}'!D2:D,"${b}",'${raw_name}'!Q2:Q,"Gold")`).setFontColor("#C8A84B").setFontSize(10);
+    D.getRange(r, 11).setFormula(`=IFERROR(TEXT(COUNTIFS('${raw_name}'!D2:D,"${b}",'${raw_name}'!Q2:Q,"Gold")/COUNTIF('${raw_name}'!D2:D,"${b}"),"0%"),"—")`).setFontColor("#888888").setFontSize(10);
+  });
+  sectionBg(13, 7, 19, 11, "#141414");
+  D.getRange("G13:K13").setBackground("#1A1A1A");
+
+  // ── BY CHANNEL MANAGER (row 21) ───────────────────────────────
+  h2(21, 1, "BY CHANNEL MANAGER");
+  ["Channel Manager","Country","Audits","Avg Score","Gold","Gold Rate"].forEach((h, i) => {
+    D.getRange(22, i+1).setValue(h).setFontColor("#888888").setFontSize(9).setFontWeight("bold");
+  });
+  const cms = [
+    ["Zhi Yong","Singapore"],["Johnathan","Singapore"],["Jerome","Singapore"],
+    ["Goh Xinyi","Singapore"],["Sinclair","Singapore"],
+    ["Adrian","Malaysia"],["Jin Nong","Malaysia"],
+    ["Ginger Kiang","Hong Kong"],["Ricky","Hong Kong"],
+    ["Ning","Thailand"],
+  ];
+  cms.forEach(([cm, country], i) => {
+    const r = 23 + i;
+    D.getRange(r, 1).setValue(cm).setFontColor("#E8E0D0").setFontSize(10);
+    D.getRange(r, 2).setValue(country).setFontColor("#666666").setFontSize(10);
+    D.getRange(r, 3).setFormula(`=COUNTIF('${raw_name}'!F2:F,"${cm}")`).setFontColor("#888888").setFontSize(10);
+    D.getRange(r, 4).setFormula(`=IFERROR(TEXT(AVERAGEIF('${raw_name}'!F2:F,"${cm}",'${raw_name}'!P2:P),"0")&"%","—")`).setFontColor("#C8A84B").setFontSize(11).setFontWeight("bold");
+    D.getRange(r, 5).setFormula(`=COUNTIFS('${raw_name}'!F2:F,"${cm}",'${raw_name}'!Q2:Q,"Gold")`).setFontColor("#C8A84B").setFontSize(10);
+    D.getRange(r, 6).setFormula(`=IFERROR(TEXT(COUNTIFS('${raw_name}'!F2:F,"${cm}",'${raw_name}'!Q2:Q,"Gold")/COUNTIF('${raw_name}'!F2:F,"${cm}"),"0%"),"—")`).setFontColor("#888888").setFontSize(10);
+  });
+  sectionBg(21, 1, 33, 6, "#141414");
+  D.getRange("A21:F21").setBackground("#1A1A1A");
+
+  // ── SECTION AVERAGES (row 21, col 8) ─────────────────────────
+  h2(21, 8, "SECTION AVERAGES (all audits)");
+  const secCols = [["A",10],["B",11],["C",12],["D",13],["E",14],["F",15]];
+  const secNames = ["Assets & Condition","Brand Identity","Cleanliness","Conquer & Visibility","Marketing Execution","Demo & Experience"];
+  ["Section","Name","Avg %"].forEach((h, i) => {
+    D.getRange(22, 8+i).setValue(h).setFontColor("#888888").setFontSize(9).setFontWeight("bold");
+  });
+  secCols.forEach(([sec, colIdx], i) => {
+    const r = 23 + i;
+    const colLetter = String.fromCharCode(64 + colIdx);
+    D.getRange(r, 8).setValue(sec).setFontColor("#E8E0D0").setFontSize(10).setFontWeight("bold");
+    D.getRange(r, 9).setValue(secNames[i]).setFontColor("#666666").setFontSize(10);
+    D.getRange(r, 10).setFormula(`=IFERROR(TEXT(AVERAGE('${raw_name}'!${colLetter}2:${colLetter}),"0")&"%","—")`).setFontColor("#C8A84B").setFontSize(11).setFontWeight("bold");
+  });
+  sectionBg(21, 8, 29, 10, "#141414");
+  D.getRange("H21:J21").setBackground("#1A1A1A");
+
+  // ── RECENT AUDITS (row 35) ────────────────────────────────────
+  h2(35, 1, "RECENT AUDITS (latest 50, auto-sorted newest first)");
+  D.getRange("A35:U35").setBackground("#1A1A1A");
+  const recentHeaders = ["Date","Country","Store","Brand","Tier","CM","Auditor","Overall %","Grade","A%","B%","C%","D%","E%","F%","Passed","Total","Failed Items","Actions"];
+  recentHeaders.forEach((h, i) => {
+    D.getRange(36, i+1).setValue(h).setFontColor("#888888").setFontSize(9).setFontWeight("bold");
+  });
+  // QUERY to pull latest 50, sorted by timestamp desc
+  D.getRange("A37").setFormula(
+    `=IFERROR(QUERY('${raw_name}'!A2:U,"SELECT H,B,C,D,E,F,G,P,Q,J,K,L,M,N,O,R,S,T,U ORDER BY A DESC LIMIT 50",0),"No data yet")`
+  ).setFontColor("#E8E0D0").setFontSize(10);
+  sectionBg(35, 1, 35, 19, "#1A1A1A");
+
+  // Column widths for dashboard
+  D.setColumnWidth(1, 160);
+  D.setColumnWidth(2, 100);
+  D.setColumnWidth(3, 220);
+  D.setColumnWidth(4, 90);
+  D.setColumnWidth(5, 80);
+  D.setColumnWidth(6, 120);
+  D.setColumnWidth(7, 10);
+  D.setColumnWidth(8, 60);
+  D.setColumnWidth(9, 200);
+  D.setColumnWidth(10, 60);
+
+  // Freeze first row of recent table
+  D.setFrozenRows(1);
+
+  // Make Dashboard the active sheet
+  ss.setActiveSheet(dash);
+
+  SpreadsheetApp.getUi().alert("✓ Setup complete! Both sheets are ready.\n\nNext: Deploy this script as a Web App and paste the URL into the scorecard Setup tab.");
+}
+</pre>
+      </div>
+      <div class="tip">✓ After pasting, click <strong>Save</strong> (the floppy disk icon or Ctrl+S)</div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">4</div><div class="step-title">Run the setup function once</div></div>
+    <div class="step-body">
+      <p>In Apps Script, click the <strong>Run</strong> button (▶) at the top — make sure the function dropdown next to it shows <strong>setupSheets</strong>.</p>
+      <p>Google will ask for permissions — click <strong>Review permissions → Allow</strong>.</p>
+      <p>You'll see a popup confirming setup is complete. Your Google Sheet will now have two tabs:</p>
+      <div class="sheet-preview">
+        <div class="sheet-tab-row">
+          <div class="sheet-tab dash">📊 Dashboard</div>
+          <div class="sheet-tab active">📥 Raw Data</div>
+        </div>
+        <div style="padding:10px 14px;font-size:10px;color:var(--text-muted);">Dashboard auto-calculates from Raw Data · Raw Data receives one row per submitted audit</div>
+      </div>
+      <div class="note">You only need to run setupSheets() once. After that, data flows in automatically every time you submit an audit.</div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">5</div><div class="step-title">Deploy as Web App</div></div>
+    <div class="step-body">
+      <p><strong>Deploy → New deployment → click the gear ⚙ → Web app</strong></p>
+      <p>Set the following:</p>
+      <div style="background:var(--surface2);border-radius:5px;padding:10px 14px;margin:8px 0;font-size:11px;line-height:2;">
+        <div><span style="color:var(--text-muted);width:160px;display:inline-block;">Execute as:</span> <strong style="color:var(--text)">Me</strong></div>
+        <div><span style="color:var(--text-muted);width:160px;display:inline-block;">Who has access:</span> <strong style="color:var(--text)">Anyone</strong></div>
+      </div>
+      <p>Click <strong>Deploy</strong> → authorize when prompted → copy the <strong>Web App URL</strong>.</p>
+      <div class="tip">✓ The URL starts with: <span style="font-family:monospace;font-size:10px;color:var(--green)">https://script.google.com/macros/s/...</span></div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step-card">
+    <div class="step-header"><div class="step-num">6</div><div class="step-title">Connect to the scorecard</div></div>
+    <div class="step-body">
+      <p>Open the <strong>Retail Distribution Audit Scorecard</strong> → click <strong>⚙ Setup</strong> tab → paste the Web App URL → click <strong>Test Connection</strong>.</p>
+      <p>You're done. Every time you complete an audit and hit <strong>Submit Audit ✓</strong>, the result automatically appears as a new row in Raw Data — and the Dashboard updates instantly.</p>
+      <div class="tip">✓ Share the Google Sheet with your channel managers in view-only mode so they can track their own scores on the Dashboard tab.</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD PREVIEW -->
+  <div class="divider">What the Dashboard looks like</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">The Dashboard tab contains these live-updating sections:</div>
+    <div class="dashboard-preview">
+      <div class="dash-block">
+        <div class="dash-block-title">Key Stats</div>
+        <div class="dash-block-formula">Total Audits · Avg Score · Gold Count · Gold Rate · Needs Attention</div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-block-title">Grade Distribution</div>
+        <div class="dash-block-formula">Count + % for Gold / A / B / C / D / E</div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-block-title">By Country</div>
+        <div class="dash-block-formula">SG / MY / HK / TH → Audits, Avg Score, Gold count, Gold rate</div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-block-title">By Brand</div>
+        <div class="dash-block-formula">Sonos / Marshall / B&W → Audits, Avg Score, Gold, Gold rate</div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-block-title">By Channel Manager</div>
+        <div class="dash-block-formula">All 10 CMs → Audits, Avg Score, Gold count, Gold rate</div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-block-title">Section Averages</div>
+        <div class="dash-block-formula">Average % for A / B / C / D / E / F across all audits</div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:5px;padding:10px 14px;margin-top:8px;font-size:11px;color:var(--text-dim);">
+      <strong style="color:var(--text)">Recent Audits table</strong> (bottom) — auto-sorted newest first, shows last 50 audits with date, store, brand, CM, score, grade, and all section scores. Pulls live from Raw Data using QUERY formula — no manual refresh needed.
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+function copyScript() {
+  const text = document.getElementById('script-block').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.getElementById('toast');
+    t.textContent = '✓ Script copied to clipboard';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  });
+}
+</script>
+</body>
+</html>
