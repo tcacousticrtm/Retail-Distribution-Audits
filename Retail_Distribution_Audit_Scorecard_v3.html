@@ -473,6 +473,7 @@
 <div class="tab-panel" id="tab-actions">
   <div class="action-box">
     <div class="action-title">Action Items — Record issues and follow-ups</div>
+    <div id="note-actions-list"></div>
     <div id="action-list"></div>
     <button class="add-action-btn" onclick="addAction()">+ Add action item</button>
   </div>
@@ -1037,6 +1038,7 @@ function resetAudit() {
   if (!confirm("Reset all scores and photos? This cannot be undone.")) return;
   scores = {};
   Object.keys(critNotes).forEach(k => delete critNotes[k]);
+  renderNoteActions();
   resetPhotos();
   buildAll();
 }
@@ -1433,8 +1435,15 @@ function buildAuditRecord() {
     });
   });
 
-  // Collect action items
-  const actions = Array.from(document.querySelectorAll('#action-list textarea')).map(t => t.value.trim()).filter(Boolean);
+  // Collect action items — manual entries + criterion notes auto-added as follow-ups
+  const manualActions = Array.from(document.querySelectorAll('#action-list textarea')).map(t => t.value.trim()).filter(Boolean);
+
+  // Auto-generate action items from criterion notes
+  const noteActions = Object.entries(critNotes)
+    .filter(([id, note]) => note && note.trim())
+    .map(([id, note]) => `${id}: ${note.trim()}`);
+
+  const actions = [...manualActions, ...noteActions];
 
   let totalPassed = 0, totalItems = 0;
   secs.forEach(id => {
@@ -1707,6 +1716,31 @@ function saveCritNote(id, value) {
     const btn = wrap.querySelector('.note-toggle');
     if (btn) btn.textContent = value ? '💬 ' + value.substring(0,40) + (value.length > 40 ? '...' : '') : '+ Add comment';
   }
+  // Refresh auto-generated action items in Actions tab
+  renderNoteActions();
+}
+
+function renderNoteActions() {
+  const container = document.getElementById('note-actions-list');
+  if (!container) return;
+  const notes = Object.entries(critNotes).filter(([k,v]) => v && v.trim());
+  if (notes.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;margin-top:4px;">
+      From criterion comments (${notes.length})
+    </div>
+    ${notes.map(([id, note]) => `
+      <div class="action-row" style="background:rgba(200,168,75,0.06);border:1px solid rgba(200,168,75,0.15);border-radius:6px;padding:8px 12px;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:600;color:var(--gold);min-width:32px;">${id}</span>
+        <span style="font-size:12px;color:var(--text-dim);flex:1;">${note.trim()}</span>
+      </div>`).join('')}
+    <div style="height:1px;background:var(--border);margin:10px 0 8px;"></div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">
+      Manual action items
+    </div>`;
 }
 
 function getAllCritNotes() {
