@@ -765,6 +765,10 @@ function makeCritRow(crit) {
         <button class="score-btn no  ${noActive}"  onclick="setScore('${crit.id}','no')">NO</button>
         <button class="score-btn na  ${naActive}"  onclick="setScore('${crit.id}','na')">N/A</button>
       </div>
+    </div>
+    <div style="padding:0 12px 6px 52px;border-bottom:1px solid #141414;" id="note-wrap-${crit.id}">
+      <button class="note-toggle" onclick="toggleCritNote('${crit.id}')">${critNotes[crit.id] ? '💬 ' + critNotes[crit.id].substring(0,40) + (critNotes[crit.id].length > 40 ? '...' : '') : '+ Add comment'}</button>
+      <textarea class="crit-note ${critNotes[crit.id] ? 'show' : ''}" id="note-${crit.id}" rows="2" placeholder="Add context e.g. 'lightbox broken', 'new product tag ordered'..." oninput="saveCritNote('${crit.id}', this.value)">${critNotes[crit.id] || ''}</textarea>
     </div>`;
 }
 
