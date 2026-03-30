@@ -231,7 +231,6 @@
     </div>
     <div class="header-right">
       <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
-      <button class="btn btn-ghost" onclick="loadAllPhotos()" title="Load CM photos for this store and date">📷 Load Photos</button>
       <button class="btn btn-ghost" onclick="sendToSheets()" id="sheets-btn">📊 Send to Sheets</button>
       <button class="btn btn-ghost" onclick="resetAudit()">Reset</button>
       <button class="btn btn-gold" onclick="submitAudit()">Submit Audit ✓</button>
@@ -1877,7 +1876,8 @@ function exportSectionComments(secId) {
   a.click();
 }
 
-function injectPhotoUploadPanels() {
+function injectPhotoUploadPanels() { return; // Photos via Drive — disabled
+  /*
   ['A','B','C','D','E','F'].forEach(id => {
     const body = document.getElementById('body-' + id);
     if (!body) return;
@@ -1890,6 +1890,7 @@ function injectPhotoUploadPanels() {
     loadCommentsForSection(id);
     renderReviewPanel(id);
   });
+  */
 }
 
 function getTotalPhotoCount() { return 0; }
