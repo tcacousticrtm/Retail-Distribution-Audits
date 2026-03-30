@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Retail Distribution Audit</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#C8A84B">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TC Audit">
+<link rel="apple-touch-icon" href="./icon-192.png">
+
+<!-- Service worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .catch(e => console.log('SW failed:', e));
+    });
+  }
+</script>
+<style>
+  :root {
+    --gold: #C8A84B; --gold-bg: rgba(200,168,75,0.09); --gold-border: rgba(200,168,75,0.22);
+    --bg: #0a0a0a; --surface: #111; --surface2: #161616; --surface3: #1c1c1c;
+    --border: #222; --border2: #2a2a2a;
+    --text: #e8e0d0; --text-dim: #888; --text-muted: #555;
+    --blue: #7aa8b8; --green: #6aaa62; --amber: #b8965a; --purple: #9a7ab8; --red: #c06060;
+    --sonos: #d8d8d8; --marshall: #F5C842; --bowers: #c0c0c0;
+    --yes-bg: #0d1f0d; --yes-color: #6aaa62;
+    --no-bg: #1f0d0d; --no-color: #c06060;
+    --na-bg: #1a1400; --na-color: #c8a820;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  /* HEADER */
+  .site-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(24px, env(safe-area-inset-right)); position: sticky; top: 0; z-index: 200; }
+  .header-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 26px; height: 26px; background: var(--gold); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #000; }
+  .logo-text { font-size: 13px; font-weight: 600; }
+  .logo-sub { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; font-size: 11px; cursor: pointer; border: 1px solid; font-weight: 500; transition: all 0.15s; }
+  .btn-ghost { border-color: var(--border2); background: transparent; color: var(--text-dim); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-gold { border-color: var(--gold); background: var(--gold-bg); color: var(--gold); }
+  .btn-gold:hover { background: rgba(200,168,75,0.16); }
+
+  /* NAV */
+  .nav-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; }
+  .nav-inner { max-width: 900px; margin: 0 auto; display: flex; gap: 2px; overflow-x: auto; }
+  .nav-tab { padding: 11px 14px; font-size: 11px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; user-select: none; }
+  .nav-tab:hover { color: var(--text-dim); }
+  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* LAYOUT */
+  .main { max-width: 900px; margin: 0 auto; padding: 24px 24px 80px; padding-bottom: max(80px, calc(80px + env(safe-area-inset-bottom))); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* AUDIT DETAILS */
+  .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .field-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+  .field-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+  .field-input { background: transparent; border: none; color: var(--text); font-size: 13px; width: 100%; outline: none; font-family: inherit; }
+  .field-select { background: transparent; border: none; color: var(--text); font-size: 13px; width: 100%; outline: none; font-family: inherit; cursor: pointer; }
+  .field-select option { background: #1a1a1a; }
+
+  /* SCORE DASHBOARD */
+  .dashboard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; }
+  .dash-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .overall-score { text-align: center; }
+  .score-num { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -2px; color: var(--gold); }
+  .score-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .grade-badge { font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-top: 4px; display: block; }
+  .section-scores { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .sec-score-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 6px; text-align: center; }
+  .sec-score-chip .sec-letter { font-size: 14px; font-weight: 800; display: block; line-height: 1; }
+  .sec-score-chip .sec-pct { font-size: 13px; font-weight: 700; display: block; margin-top: 3px; }
+  .sec-score-chip .sec-lbl { font-size: 8px; color: var(--text-muted); display: block; margin-top: 2px; letter-spacing: 0.5px; }
+  .progress-bar { height: 4px; background: var(--border2); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.3s; }
+
+  /* SECTION BLOCK */
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+  .section-toggle { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; cursor: pointer; user-select: none; }
+  .section-toggle:hover { background: rgba(255,255,255,0.02); }
+  .sec-left { display: flex; align-items: center; gap: 10px; }
+  .sec-letter { font-size: 20px; font-weight: 800; line-height: 1; }
+  .sec-name { font-size: 13px; font-weight: 600; }
+  .sec-sub { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+  .sec-right { display: flex; align-items: center; gap: 8px; }
+  .sec-score-inline { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--surface2); }
+  .sec-weight-tag { font-size: 9px; padding: 2px 8px; border-radius: 10px; border: 1px solid; }
+  .chev { color: var(--text-muted); font-size: 10px; transition: transform 0.2s; }
+  .chev.open { transform: rotate(180deg); }
+  .sec-body { border-top: 1px solid var(--border); display: none; }
+  .sec-body.open { display: block; }
+
+  /* SUBSECTION */
+  .subsec-row { padding: 7px 16px 5px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .subsec-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .subsec-name { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .subsec-desc { font-size: 9px; color: var(--text-muted); font-style: italic; }
+
+  /* CRITERION ROW */
+  .crit-row.cm-verified-row { background: rgba(122,168,184,0.04); border-left: 2px solid var(--blue); }
+  .cm-verified-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(122,168,184,0.12); border:1px solid rgba(122,168,184,0.3); color:var(--blue); font-size:9px; font-weight:600; letter-spacing:0.3px; padding:2px 7px; border-radius:4px; margin-left:6px; }
+  .cm-lock-note { font-size:10px; color:var(--blue); margin-top:3px; font-style:italic; opacity:0.8; }
+  .crit-row:last-child { border-bottom: none; }
+  .crit-num { width: 36px; flex-shrink: 0; font-size: 10px; color: var(--text-muted); padding: 12px 6px 12px 16px; text-align: right; padding-top: 14px; }
+  .crit-text-wrap { flex: 1; padding: 11px 10px 11px 6px; }
+  .crit-text { font-size: 12px; color: var(--text); line-height: 1.55; }
+  .crit-text.is-new { color: #c0b0d8; font-style: italic; }
+  .crit-badges-inline { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 5px; }
+  .crit-score-col { flex-shrink: 0; padding: 8px 12px 8px 0; display: flex; gap: 4px; align-items: flex-start; padding-top: 9px; }
+
+  /* SCORE BUTTONS */
+  .score-btn { width: 38px; height: 28px; border-radius: 4px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text-muted); font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.1s; letter-spacing: 0.3px; }
+  .score-btn:hover { border-color: var(--text-muted); color: var(--text-dim); }
+  .score-btn.yes.active { background: var(--yes-bg); border-color: var(--yes-color); color: var(--yes-color); }
+  .score-btn.no.active  { background: var(--no-bg);  border-color: var(--no-color);  color: var(--no-color); }
+  .score-btn.na.active  { background: var(--na-bg);  border-color: #c8a82066; color: var(--na-color); }
+
+  /* BADGES */
+  .badge { font-size: 8px; padding: 1px 5px; border-radius: 3px; border: 1px solid; letter-spacing: 0.3px; }
+  .badge-crit   { color: var(--red);    background: rgba(192,96,96,0.1);  border-color: rgba(192,96,96,0.3); }
+  .badge-new    { color: var(--purple); background: rgba(154,122,184,0.1);border-color: rgba(154,122,184,0.3); }
+  .badge-t1     { color: var(--text-muted); background: #1a1a1a; border-color: #2a2a2a; }
+  .badge-t12    { color: var(--text-muted); background: #1a1a1a; border-color: #2a2a2a; }
+
+  /* GRADE COLOURS */
+  .grade-gold { color: var(--gold); }
+  .grade-a    { color: var(--blue); }
+  .grade-b    { color: #6aaa62; }
+  .grade-c    { color: var(--amber); }
+  .grade-d    { color: #e08030; }
+  .grade-e    { color: var(--red); }
+
+  /* ACTION ITEMS */
+  .action-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; }
+  .action-title { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 10px; }
+  .action-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .action-input { flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 12px; padding: 6px 10px; font-family: inherit; resize: none; }
+  .action-input:focus { outline: none; border-color: var(--gold); }
+  .add-action-btn { font-size: 11px; color: var(--gold); background: none; border: 1px solid var(--gold-border); border-radius: 4px; padding: 4px 10px; cursor: pointer; margin-top: 4px; }
+  .add-action-btn:hover { background: var(--gold-bg); }
+  .remove-btn { color: var(--text-muted); background: none; border: none; cursor: pointer; font-size: 14px; padding: 4px; line-height: 1; }
+  .remove-btn:hover { color: var(--red); }
+
+  /* SUMMARY TAB */
+  .summary-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; }
+  .summary-title { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .label { color: var(--text-dim); }
+  .summary-row .value { font-weight: 600; color: var(--text); }
+  .fail-list { margin-top: 12px; }
+  .fail-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: rgba(192,96,96,0.06); border: 1px solid rgba(192,96,96,0.15); border-radius: 5px; margin-bottom: 5px; font-size: 11px; color: #d08080; line-height: 1.5; }
+  .fail-item::before { content: '✕'; font-size: 10px; flex-shrink: 0; margin-top: 1px; }
+
+  /* PHOTO REVIEW */
+  .photo-review { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius); padding:12px 14px; margin:8px 0 4px; }
+  .photo-review-title { font-size:10px; font-weight:600; color:var(--text-muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .photo-review-grid { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .review-thumb { width:72px; height:72px; border-radius:5px; object-fit:cover; border:1px solid var(--border2); cursor:pointer; }
+  .load-photos-btn { background:var(--gold-bg); border:1px solid var(--gold-border); border-radius:6px; color:var(--gold); font-size:11px; padding:5px 12px; cursor:pointer; }
+  .load-photos-btn:hover { background:rgba(200,168,75,0.16); }
+  .comment-box { width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:4px; color:var(--text); font-size:11px; padding:6px 9px; font-family:inherit; resize:none; margin-top:6px; }
+  .comment-box:focus { outline:none; border-color:var(--gold); }
+  .comment-thread-item { background:var(--surface); border:1px solid var(--border2); border-radius:5px; padding:7px 10px; margin-top:5px; font-size:11px; }
+  .comment-thread-item .author { color:var(--gold); font-weight:600; font-size:10px; }
+  .comment-thread-item .resolved-tag { font-size:9px; color:var(--green); margin-left:6px; }
+  .photo-no-data { font-size:11px; color:var(--text-muted); font-style:italic; }
+  .dash-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 20px; }
+  .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .dash-card-num { font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  .dash-card-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+  .dash-card-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .dash-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 12px; }
+  .dash-section-title { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 14px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 11px; }
+  .bar-label { width: 160px; flex-shrink: 0; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+  .bar-val { width: 40px; text-align: right; font-weight: 600; flex-shrink: 0; }
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .audit-table th { text-align: left; padding: 6px 10px; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .audit-table td { padding: 9px 10px; border-bottom: 1px solid #141414; color: var(--text-dim); }
+  .audit-table tr:last-child td { border-bottom: none; }
+  .audit-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .grade-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .no-data { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 12px; font-style: italic; }
+  /* SETUP */
+  .setup-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; }
+  .setup-title { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }
+  .setup-desc { font-size: 11px; color: var(--text-muted); line-height: 1.7; margin-bottom: 12px; }
+  .setup-step { display: flex; gap: 12px; margin-bottom: 10px; }
+  .setup-step-num { width: 22px; height: 22px; background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--gold); flex-shrink: 0; font-weight: 700; }
+  .setup-step-text { font-size: 11px; color: var(--text-dim); line-height: 1.7; flex: 1; }
+  .code-block { background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; padding: 12px 14px; font-family: monospace; font-size: 10px; color: var(--green); line-height: 1.6; white-space: pre-wrap; margin: 8px 0; }
+  .url-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .url-input { flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 12px; padding: 8px 12px; font-family: inherit; }
+  .url-input:focus { outline: none; border-color: var(--gold); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 20px; font-size: 12px; color: var(--text-dim); z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 700px) { .dash-grid { grid-template-columns: 1fr 1fr; } }
+
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">TC</div>
+      <div>
+        <div class="logo-text">Retail Distribution Store Audit</div>
+        <div class="logo-sub">Scorecard v3.0 · SG · MY · HK · TH</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-ghost" onclick="loadAllPhotos()" title="Load CM photos for this store and date">📷 Load Photos</button>
+      <button class="btn btn-ghost" onclick="sendToSheets()" id="sheets-btn">📊 Send to Sheets</button>
+      <button class="btn btn-ghost" onclick="resetAudit()">Reset</button>
+      <button class="btn btn-gold" onclick="submitAudit()">Submit Audit ✓</button>
+    </div>
+  </div>
+</div>
+
+<div class="nav-bar">
+  <div class="nav-inner">
+    <div class="nav-tab" onclick="switchTab('dashboard',this)">📊 Dashboard</div>
+    <div class="nav-tab active" onclick="switchTab('scorecard',this)">Scorecard</div>
+    <div class="nav-tab" onclick="switchTab('summary',this)">Summary</div>
+    <div class="nav-tab" onclick="switchTab('actions',this)">Action Items</div>
+    <div class="nav-tab" onclick="switchTab('setup',this)">⚙ Setup</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ══ SCORECARD TAB ══ -->
+<div class="tab-panel active" id="tab-scorecard">
+
+  <!-- Audit Details -->
+  <div class="details-grid">
+    <div class="field-group">
+      <div class="field-label">Country</div>
+      <select class="field-select" id="country" onchange="onCountryChange()">
+        <option value="SG">🇸🇬 Singapore</option>
+        <option value="MY">🇲🇾 Malaysia</option>
+        <option value="HK">🇭🇰 Hong Kong</option>
+        <option value="TH">🇹🇭 Thailand</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Brand</div>
+      <select class="field-select" id="brand" onchange="onBrandChange()">
+        <!-- populated by JS -->
+      </select>
+    </div>
+    <div class="field-group" style="grid-column:1/-1">
+      <div class="field-label">Store</div>
+      <select class="field-select" id="store-select" onchange="onStoreChange()">
+        <!-- populated by JS -->
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Store Tier</div>
+      <select class="field-select" id="tier" onchange="recalc()">
+        <option value="t1">T1 — Flagship</option>
+        <option value="t2">T2 — Standard</option>
+        <option value="t3">T3 — Basic</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Audit Date</div>
+      <input class="field-input" id="audit-date" type="date" oninput="updateSummary()">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Auditor</div>
+      <select class="field-select" id="auditor" onchange="onAuditorChange()">
+        <option value="">— Select auditor —</option>
+        <option value="Sylvia">Sylvia</option>
+        <option value="other">Other (store staff)</option>
+      </select>
+    </div>
+    <div class="field-group" id="staff-name-field" style="display:none;">
+      <div class="field-label">Staff Name</div>
+      <input class="field-input" id="staff-name" type="text" placeholder="Enter staff name" oninput="updateSummary()">
+    </div>
+    <div class="field-group" id="cm-field">
+      <div class="field-label">Channel Manager</div>
+      <div class="field-input" id="cm-display" style="color:var(--text-muted);padding-top:2px;">—</div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Audit Type</div>
+      <select class="field-select" id="audit-type" onchange="buildAll();updateSummary()">
+        <option>In-Person</option>
+        <option>Remote (Photo Submission)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Score Dashboard -->
+  <div class="dashboard">
+    <div class="dash-top">
+      <div>
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Overall Score</div>
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span class="score-num" id="overall-pct">—</span>
+          <span class="grade-badge" id="overall-grade">—</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="items-count">0 of 0 items scored</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:var(--text-muted);line-height:2;">
+        <div>✓ Pass &nbsp;&nbsp; ✕ Fail &nbsp;&nbsp; — N/A</div>
+        <div style="margin-top:4px;">Gold ≥90% · A 80–89% · B 70–79%</div>
+        <div>C 60–69% · D 50–59% · E &lt;60%</div>
+      </div>
+    </div>
+    <div class="section-scores" id="section-scores">
+      <!-- filled by JS -->
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- SECTION A -->
+  <div class="section-block" id="block-A" style="border-left:3px solid var(--amber)">
+    <div class="section-toggle" onclick="toggleSec('A')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:var(--amber)">A</span>
+        <div><div class="sec-name">Assets &amp; Condition</div><div class="sec-sub">All brands · All tiers</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" style="color:var(--amber)" id="score-chip-A">—</span>
+        <span class="sec-weight-tag" style="color:var(--amber);border-color:rgba(184,150,90,0.3);background:rgba(184,150,90,0.07)" id="weight-A">T1 15%</span>
+        <span class="chev open" id="chev-A">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-A">
+      <!-- criteria injected by JS -->
+    </div>
+  </div>
+
+  <!-- SECTION B -->
+  <div class="section-block" id="block-B" style="border-left:3px solid var(--blue)">
+    <div class="section-toggle" onclick="toggleSec('B')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:var(--blue)">B</span>
+        <div><div class="sec-name">Brand Identity &amp; Presence</div><div class="sec-sub">All brands · Inspire → Educate → Convert</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" style="color:var(--blue)" id="score-chip-B">—</span>
+        <span class="sec-weight-tag" style="color:var(--blue);border-color:rgba(122,168,184,0.3);background:rgba(122,168,184,0.07)" id="weight-B">T1 15%</span>
+        <span class="chev open" id="chev-B">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-B"></div>
+  </div>
+
+  <!-- SECTION C -->
+  <div class="section-block" id="block-C" style="border-left:3px solid #5aaa52">
+    <div class="section-toggle" onclick="toggleSec('C')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:#5aaa52">C</span>
+        <div><div class="sec-name">Cleanliness &amp; Standards</div><div class="sec-sub">All brands · All tiers</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" style="color:#5aaa52" id="score-chip-C">—</span>
+        <span class="sec-weight-tag" style="color:#5aaa52;border-color:rgba(90,170,82,0.3);background:rgba(90,170,82,0.07)" id="weight-C">T1 10%</span>
+        <span class="chev open" id="chev-C">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-C"></div>
+  </div>
+
+  <!-- SECTION D -->
+  <div class="section-block" id="block-D" style="border-left:3px solid var(--amber)">
+    <div class="section-toggle" onclick="toggleSec('D')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:var(--amber)">D</span>
+        <div><div class="sec-name">Conquer &amp; Visibility</div><div class="sec-sub">All brands · Some criteria T1/T2 only</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" style="color:var(--amber)" id="score-chip-D">—</span>
+        <span class="sec-weight-tag" style="color:var(--amber);border-color:rgba(184,150,90,0.3);background:rgba(184,150,90,0.07)" id="weight-D">T1 10%</span>
+        <span class="chev open" id="chev-D">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-D"></div>
+  </div>
+
+  <!-- SECTION E -->
+  <div class="section-block" id="block-E" style="border-left:3px solid var(--purple)">
+    <div class="section-toggle" onclick="toggleSec('E')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:var(--purple)">E</span>
+        <div><div class="sec-name">Marketing Execution <span style="font-size:9px;opacity:0.7;">★ New</span></div><div class="sec-sub">All brands · Campaign accuracy</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" style="color:var(--purple)" id="score-chip-E">—</span>
+        <span class="sec-weight-tag" style="color:var(--purple);border-color:rgba(154,122,184,0.3);background:rgba(154,122,184,0.07)" id="weight-E">T1 10%</span>
+        <span class="chev open" id="chev-E">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-E"></div>
+  </div>
+
+  <!-- SECTION F -->
+  <div class="section-block" id="block-F" style="border-left:3px solid var(--sonos)">
+    <div class="section-toggle" onclick="toggleSec('F')">
+      <div class="sec-left">
+        <span class="sec-letter" style="color:var(--sonos)" id="f-letter">F</span>
+        <div><div class="sec-name" id="f-title">Demo &amp; Experience — Sonos</div><div class="sec-sub" id="f-sub">Sonos only</div></div>
+      </div>
+      <div class="sec-right">
+        <span class="sec-score-inline" id="score-chip-F" style="color:var(--sonos)">—</span>
+        <span class="sec-weight-tag" id="weight-F" style="color:var(--sonos);border-color:rgba(216,216,216,0.3);background:rgba(216,216,216,0.07)">T1 40%</span>
+        <span class="chev open" id="chev-F">▼</span>
+      </div>
+    </div>
+    <div class="sec-body open" id="body-F"></div>
+  </div>
+
+</div><!-- end scorecard tab -->
+
+<!-- ══ SUMMARY TAB ══ -->
+<div class="tab-panel" id="tab-summary">
+  <div class="summary-section">
+    <div class="summary-title">Audit Details</div>
+    <div class="summary-row"><span class="label">Store</span><span class="value" id="sum-store">—</span></div>
+    <div class="summary-row"><span class="label">Country</span><span class="value" id="sum-country">—</span></div>
+    <div class="summary-row"><span class="label">Brand</span><span class="value" id="sum-brand">—</span></div>
+    <div class="summary-row"><span class="label">Tier</span><span class="value" id="sum-tier">—</span></div>
+    <div class="summary-row"><span class="label">Date</span><span class="value" id="sum-date">—</span></div>
+    <div class="summary-row"><span class="label">Auditor</span><span class="value" id="sum-auditor">—</span></div>
+    <div class="summary-row"><span class="label">Channel Manager</span><span class="value" id="sum-cm">—</span></div>
+    <div class="summary-row"><span class="label">Photos</span><span class="value" id="sum-photos" style="color:var(--blue)">0 photos attached</span></div>
+    <div class="summary-row"><span class="label">Type</span><span class="value" id="sum-type">—</span></div>
+  </div>
+  <div class="summary-section">
+    <div class="summary-title">Score Breakdown</div>
+    <div id="sum-section-rows">—</div>
+    <div class="summary-row" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);border-bottom:none;">
+      <span class="label" style="font-weight:700;color:var(--text)">Overall</span>
+      <span style="font-size:20px;font-weight:800;" id="sum-overall">—</span>
+    </div>
+  </div>
+  <div class="summary-section" id="sum-fails-wrap">
+    <div class="summary-title">Failed Items</div>
+    <div class="fail-list" id="sum-fails">—</div>
+  </div>
+</div>
+
+<!-- ══ ACTIONS TAB ══ -->
+<div class="tab-panel" id="tab-actions">
+  <div class="action-box">
+    <div class="action-title">Action Items — Record issues and follow-ups</div>
+    <div id="action-list"></div>
+    <button class="add-action-btn" onclick="addAction()">+ Add action item</button>
+  </div>
+</div>
+<!-- ══ DASHBOARD TAB ══ -->
+<div class="tab-panel" id="tab-dashboard">
+  <div class="dash-grid" id="dash-stats">
+    <div class="dash-card"><div class="dash-card-num" id="d-total" style="color:var(--gold)">0</div><div class="dash-card-label">Total Audits</div></div>
+    <div class="dash-card"><div class="dash-card-num" id="d-avg" style="color:var(--blue)">—</div><div class="dash-card-label">Average Score</div></div>
+    <div class="dash-card"><div class="dash-card-num" id="d-gold" style="color:var(--gold)">0</div><div class="dash-card-label">Gold Stores</div><div class="dash-card-sub" id="d-gold-rate">—</div></div>
+    <div class="dash-card"><div class="dash-card-num" id="d-fails" style="color:var(--red)">0</div><div class="dash-card-label">Below Grade C</div><div class="dash-card-sub">Need attention</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+    <!-- By Country -->
+    <div class="dash-section">
+      <div class="dash-section-title">Score by Country</div>
+      <div id="dash-by-country"><div class="no-data">No audit data yet</div></div>
+    </div>
+    <!-- By Brand -->
+    <div class="dash-section">
+      <div class="dash-section-title">Score by Brand</div>
+      <div id="dash-by-brand"><div class="no-data">No audit data yet</div></div>
+    </div>
+  </div>
+
+  <!-- By CM -->
+  <div class="dash-section">
+    <div class="dash-section-title">Score by Channel Manager</div>
+    <div id="dash-by-cm"><div class="no-data">No audit data yet</div></div>
+  </div>
+
+  <!-- Grade Distribution -->
+  <div class="dash-section">
+    <div class="dash-section-title">Grade Distribution</div>
+    <div id="dash-grades" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+
+  <!-- Recent Audits -->
+  <div class="dash-section">
+    <div class="dash-section-title">Recent Audits <span style="font-weight:400;color:var(--text-muted);font-size:9px;text-transform:none;letter-spacing:0">(last 30)</span>
+      <button onclick="clearHistory()" style="float:right;font-size:9px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;opacity:0.6;">Clear history</button>
+    </div>
+    <div id="dash-recent"><div class="no-data">No audit data yet — complete and submit an audit to see it here</div></div>
+  </div>
+
+  <!-- Most Failed Criteria -->
+  <div class="dash-section">
+    <div class="dash-section-title">Most Frequently Failed Criteria</div>
+    <div id="dash-fails"><div class="no-data">No audit data yet</div></div>
+  </div>
+</div>
+
+<!-- ══ SETUP TAB ══ -->
+<div class="tab-panel" id="tab-setup">
+  <div class="setup-section">
+    <div class="setup-title">Google Sheets Integration</div>
+    <div class="setup-desc">One-time setup. Once connected, every submitted audit automatically appears as a new row in your <strong style="color:var(--text)">separate Retail Distribution Google Sheet</strong> — completely independent from the TC Direct Store Audit sheet. You will need to create a new sheet and deploy a new Apps Script for this scorecard.</div>
+
+    <div class="setup-step"><div class="setup-step-num">1</div><div class="setup-step-text"><strong style="color:var(--text)">Create a new Google Sheet</strong> (separate from TC Direct) and add these headers in Row 1:<br>
+    <span style="font-family:monospace;font-size:10px;color:var(--green)">Timestamp | Country | Store | Brand | Tier | CM | Auditor | Date | Type | Score A | Score B | Score C | Score D | Score E | Score F | Overall % | Grade | Items Passed | Total Items | Failed Items | Actions</span></div></div>
+
+    <div class="setup-step"><div class="setup-step-num">2</div><div class="setup-step-text"><strong style="color:var(--text)">In that new sheet, open Extensions → Apps Script</strong>, delete any existing code, paste the script below, then Save. <span style="color:var(--amber)">Do not reuse the TC Direct Apps Script — this needs its own deployment.</span></div></div>
+
+    <div class="code-block">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    new Date().toISOString(),
+    data.country, data.store, data.brand, data.tier, data.cm,
+    data.auditor, data.date, data.type,
+    data.scoreA, data.scoreB, data.scoreC, data.scoreD, data.scoreE, data.scoreF,
+    data.overall, data.grade, data.passed, data.total,
+    data.failedItems, data.actions
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({status:"success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  return ContentService.createTextOutput("Retail Audit endpoint is live.")
+    .setMimeType(ContentService.MimeType.TEXT);
+}</div>
+    <button class="btn btn-ghost" style="font-size:10px;margin-top:4px;" onclick="navigator.clipboard.writeText(document.querySelector('.code-block').textContent);showToast('Script copied!')">Copy Script</button>
+
+    <div class="setup-step" style="margin-top:14px;"><div class="setup-step-num">3</div><div class="setup-step-text"><strong style="color:var(--text)">Deploy as Web App:</strong> Click Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone → Deploy → Copy the Web App URL.</div></div>
+
+    <div class="setup-step"><div class="setup-step-num">4</div><div class="setup-step-text"><strong style="color:var(--text)">Paste your Web App URL below</strong> — saved in your browser, one-time only.</div></div>
+    <div class="url-input-row">
+      <input class="url-input" id="sheets-url" type="text" placeholder="https://script.google.com/macros/s/..." oninput="saveSheetUrl()">
+      <button class="btn btn-gold" onclick="testSheetConnection()">Test Connection</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:6px;" id="sheets-url-status"></div>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-title">Dashboard Data</div>
+    <div class="setup-desc">Audit results are stored locally in your browser so the Dashboard works offline. Submitted audits also send to Google Sheets if configured above.</div>
+    <div style="font-size:12px;color:var(--text-dim);" id="local-data-count">Loading...</div>
+    <button class="btn btn-ghost" style="font-size:10px;margin-top:10px;" onclick="clearHistory()">Clear local audit history</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+</div><!-- end main -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// tiers: null = all, ['t1'] = T1 only, ['t1','t2'] = T1/T2 only
+const SECTIONS = {
+  A: {
+    label: "Assets & Condition",
+    weights: { t1:15, t2:20, t3:25 },
+    color: "var(--amber)",
+    criteria: [
+      { id:"A1", text:"All demo units and POS displays are accounted for", tags:["Critical"], tiers:null },
+      { id:"A2", text:"No visible damage (dent / scratch) on demo units", tags:["Critical"], tiers:null },
+      { id:"A3", text:"All powered displays, screens, and illuminated builds are switched on", tags:[], tiers:null },
+      { id:"A4", text:"Cables are neatly managed and hidden where possible", tags:[], tiers:null },
+      { id:"A5", text:"Demos and stock are neatly arranged", tags:[], tiers:null },
+    ]
+  },
+  B: {
+    label: "Brand Identity & Presence",
+    weights: { t1:20, t2:20, t3:20 },
+    color: "var(--blue)",
+    groups: [
+      { label:"Stage 1 — Inspire", color:"var(--gold)", desc:"Shoppers stop and browse our products", criteria:[
+        { id:"B1", text:"Hero visuals and POS displays reflect the current campaign or latest product lineup — a passing shopper can immediately tell what's new or featured", tags:[], tiers:null },
+        { id:"B2", text:"Brand video or screen content is current (not outdated)", tags:[], tiers:null },
+        { id:"B3", text:"All lightboxes and illuminated signage are in good condition — no dead bulbs, no visible damage", tags:[], tiers:null },
+        { id:"B4", text:"Educational standees are displayed beside the relevant demos to highlight the new product feature", tags:["New"], tiers:null, isNew:true },
+      ]},
+      { label:"Stage 2 — Educate", color:"var(--blue)", desc:"Shoppers learn USPs and can differentiate our brands", criteria:[
+        { id:"B5", text:"Every demo unit has a product tag — key USPs are clearly legible and current pricing is visible. A shopper can understand the product and its price without staff assistance", tags:[], tiers:null },
+        { id:"B6", text:"Demos are displayed by category so a shopper can independently navigate the range and find what they are looking for", tags:[], tiers:null },
+      ]},
+      { label:"Stage 3 — Convert", color:"#5aaa52", desc:"Shopper grabs stock and purchases", criteria:[
+        { id:"B7", text:"Stock display is well-balanced — key SKUs present, dedicated stock space looks inviting (not too empty to suggest closedown, not overfilled to suggest poor sales)", tags:[], tiers:null },
+      ]},
+    ]
+  },
+  C: {
+    label: "Cleanliness & Standards",
+    weights: { t1:10, t2:15, t3:20 },
+    color: "#5aaa52",
+    criteria: [
+      { id:"C1", text:"Demo units, POS displays and all surfaces are dust-free and stain-free", tags:[], tiers:null },
+      { id:"C2", text:"iPad screens and mirrors, where present, are free from fingerprints and smudges", tags:["New"], tiers:null, isNew:true },
+      { id:"C3", text:"Surrounding area is clean and litter-free", tags:[], tiers:null },
+    ]
+  },
+  D: {
+    label: "Conquer & Visibility",
+    weights: { t1:10, t2:5, t3:5 },
+    color: "var(--amber)",
+    criteria: [
+      { id:"D1", text:"Brand space is not obstructed by mall fixtures or competitor displays", tags:["Critical"], tiers:null },
+      { id:"D2", text:"Our demos / POS displays / educational assets are displayed in a secondary location (Digital / physical)", tags:["New","T1/T2"], tiers:["t1","t2"], isNew:true },
+      { id:"D3", text:"Our brand has equal or stronger share-of-shelf vs the nearest competitor display", tags:["New","T1/T2"], tiers:["t1","t2"], isNew:true },
+      { id:"D4", text:"Brand logo or visual is visible from the main store aisle — a passing shopper can identify the brand without entering the display area", tags:["New","T3"], tiers:["t3"], isNew:true },
+    ]
+  },
+  E: {
+    label: "Marketing Execution",
+    weights: { t1:10, t2:10, t3:10 },
+    color: "var(--purple)",
+    criteria: [
+      { id:"E1", text:"Current campaign materials are correctly deployed — right assets, right placement, nothing missing", tags:["New","Critical"], tiers:null, isNew:true },
+      { id:"E2", text:"No outdated campaign materials present in store — all assets reflect the current period", tags:["New"], tiers:null, isNew:true },
+      { id:"E3", text:"Secondary display locations have both a demo and supporting signage / product tag — not a demo unit in isolation", tags:["New"], tiers:null, isNew:true },
+    ]
+  },
+};
+
+const SECTION_F = {
+  sonos: {
+    color: "var(--sonos)", label:"Demo & Experience — Sonos", sub:"Sonos only",
+    weights: { t1:35, t2:30, t3:20 },
+    groups: [
+      { label:"Tech & Connectivity", color:"var(--blue)", criteria:[
+        { id:"F1", text:"Spotify & Apple Music are linked, active, and a curated playlist is queued and ready to play — no setup steps required during a customer demo", tags:["Critical"], tiers:null , cmVerified:true },
+        { id:"F2", text:"All speakers on system, fully updated, playing simultaneously with no drop-outs — multi-room stress test passes during audit", tags:["Critical"], tiers:null, cmVerified:true },
+        { id:"F3", text:"SIM card / dongle plan is active and system connectivity is stable", tags:["T1/T2"], tiers:["t1","t2"] , cmVerified:true },
+      ]},
+      { label:"Setup & Software", color:"var(--blue)", criteria:[
+        { id:"F4", text:"Sub Mini / Sub correctly connected to recommended soundbar and audibly enhances the low-end — bass is clearly felt, not just technically connected", tags:["T1/T2"], tiers:["t1","t2"] , cmVerified:true },
+        { id:"F5", text:"TV Audio Swap via Sonos Ace works seamlessly by pressing the Content Key — tested and confirmed working during audit", tags:["T1"], tiers:["t1"] , cmVerified:true },
+      ]},
+      { label:"Content Readiness", color:"var(--blue)", criteria:[
+        { id:"F6", text:"Dolby Atmos content is playing on Atmos-capable speakers and the spatial audio difference is clearly audible", tags:["T1/T2"], tiers:["t1","t2"] , cmVerified:true },
+        { id:"F7", text:"Thumb drives updated with latest Dolby Atmos clips and brand videos, neatly arranged", tags:["T1"], tiers:["t1"] , cmVerified:true },
+      ]},
+      { label:"★ Home Feel & USP Story", color:"var(--purple)", criteria:[
+        { id:"F8",  text:"The setup looks and feels like a premium home environment — speakers are positioned as they would be in a living room, not displayed as retail shelf stock", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F9",  text:"The multi-room USP is clearly demonstrated — a shopper can see and hear Sonos playing across multiple speakers simultaneously without staff assistance", tags:["New","T1"], tiers:["t1"], isNew:true, cmVerified:true },
+        { id:"F10", text:"Ease of use is demonstrated — a shopper can press play, adjust volume, or switch rooms without any staff assistance", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F11", text:"Speakers are TruePlay-tuned and audio quality reflects Sonos sound", tags:["New"], tiers:null, isNew:true, cmVerified:true },
+      ]},
+    ]
+  },
+  marshall: {
+    color: "var(--marshall)", label:"Demo & Experience — Marshall", sub:"Marshall only",
+    weights: { t1:35, t2:30, t3:20 },
+    groups: [
+      { label:"Visual Impact", color:"var(--marshall)", criteria:[
+        { id:"F1", text:"The Marshall display is visually striking and brand-recognisable from at least 3 metres", tags:["New","Critical"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F2", text:"The Marshall display looks more premium and distinctive than adjacent competitor displays — Marshall wins the visual share-of-floor in the immediate area", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F3", text:"All Marshall demo units are powered on, illuminated where applicable, and playing music that is audible from the surrounding aisle", tags:[], tiers:null , cmVerified:true },
+      ]},
+      { label:"Demo Accessibility", color:"var(--amber)", criteria:[
+        { id:"F4", text:"Every headphone and portable speaker demo is accessible — no barriers, security fixtures or positioning that prevents a shopper from picking it up and trying it immediately", tags:[], tiers:null , cmVerified:true },
+        { id:"F5", text:"Headphone demos are clean, hygienic and ready for demos — ear cushions in good condition, cables untangled, no wear & tear that would deter a shopper from trying", tags:[], tiers:null , cmVerified:true },
+      ]},
+      { label:"Brand Storytelling", color:"var(--gold)", criteria:[
+        { id:"F6", text:"Hero product(s) for the current campaign period are the most prominently positioned — a shopper looking at the display knows which product Marshall wants them to consider first", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F7", text:"Marshall's brand story or heritage is communicated through at least one visual element — a shopper understands this is more than a speaker brand", tags:[], tiers:null , cmVerified:true },
+        { id:"F8", text:"Key product USPs are specific and legible at point of demo — not just model names, but reasons to buy (e.g. 'up to 80hrs battery', 'multi-host Bluetooth')", tags:[], tiers:null , cmVerified:true },
+        { id:"F9", text:"Audio playing through Marshall demos is on-brand — rock, blues or lifestyle genres that reinforce the Marshall identity, not generic store or mall music", tags:[], tiers:null, cmVerified:true },
+      ]},
+    ]
+  },
+  bowers: {
+    color: "var(--bowers)", label:"Demo & Experience — Bowers & Wilkins", sub:"B&W only",
+    weights: { t1:35, t2:30, t3:20 },
+    groups: [
+      { label:"Brand Authority", color:"var(--bowers)", criteria:[
+        { id:"F1", text:"Brand ambassador visuals (David Beckham, Lando Norris, McLaren collaboration) are present and prominently placed — a shopper recognises the brand association immediately", tags:["New","Critical"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F2", text:"Award recognitions and critical acclaim callouts are visible near relevant products — call-out is visible without asking staff", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F3", text:"The display is clean, uncluttered and hero products are at eye level — Bowers' premium design-led identity is apparent at a glance and clearly apart from adjacent mid-tier brands", tags:["Critical"], tiers:null , cmVerified:true },
+      ]},
+      { label:"Demo Experience", color:"var(--blue)", criteria:[
+        { id:"F4", text:"Headphones (Px8, Pi8, McLaren editions) are at eye level, immediately accessible, and ready for self-demos — no physical barriers between shopper and demo", tags:[], tiers:null , cmVerified:true },
+        { id:"F5", text:"All demo headphones are clean and hygienic — ear cushions undamaged, cables neat, in a condition a premium buyer would find acceptable", tags:[], tiers:null , cmVerified:true },
+        { id:"F6", text:"Wired or passive speakers are powered on and playing music — audio is audible at point of display", tags:[], tiers:null , cmVerified:true },
+      ]},
+    ]
+  },
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let scores = {}; // criterionId -> 'yes'|'no'|'na'
+
+function getActiveTier() { return document.getElementById('tier').value; }
+function getActiveBrand() { return document.getElementById('brand').value; }
+
+// ── BUILD SECTION BODIES ──────────────────────────────────────────────────────
+function isCritApplicable(crit) {
+  if (!crit.tiers) return true;
+  return crit.tiers.includes(getActiveTier());
+}
+
+function makeCritRow(crit) {
+  const applicable = isCritApplicable(crit);
+  const score = scores[crit.id] || null;
+  const isCmVerified = !!crit.cmVerified;
+  const auditType = document.getElementById('audit-type')?.value || '';
+  const isRemote = auditType === 'Remote (Photo Submission)';
+
+  const rowClass = "crit-row" + (crit.isNew ? " is-new-row" : "") + (!applicable ? " not-applicable" : "") + (isCmVerified ? " cm-verified-row" : "");
+
+  const badges = crit.tags.map(t => {
+    const cls = t === "Critical" ? "badge-crit" : t === "New" ? "badge-new" : "badge-t12";
+    return `<span class="badge ${cls}">${t}</span>`;
+  }).join("");
+
+  const yesActive = score === "yes" ? "active" : "";
+  const noActive  = score === "no"  ? "active" : "";
+  const naActive  = score === "na"  ? "active" : "";
+
+  const opacity = applicable ? "" : "style='opacity:0.3;pointer-events:none;'";
+
+  const cmBadge = isCmVerified ? `<span class="cm-verified-badge">👤 CM verified</span>` : "";
+  const cmNote  = isCmVerified && isRemote
+    ? `<div class="cm-lock-note">⚠ Requires physical presence — CM to verify and score during store visit</div>` : "";
+
+  return `
+    <div class="${rowClass}" id="row-${crit.id}" ${opacity}>
+      <span class="crit-num">${crit.id.replace(/[A-Z]/g,'').replace('1','').replace('2','').replace('3','').replace('4','').replace('5','').replace('6','').replace('7','').replace('8','').replace('9','')}</span>
+      <span class="crit-num" style="width:28px;padding-left:0;">${crit.id}</span>
+      <div class="crit-text-wrap">
+        <div class="crit-text ${crit.isNew ? 'is-new' : ''}">${crit.isNew ? '★ ' : ''}${escHtml(crit.text)}${cmBadge}</div>
+        ${badges ? `<div class="crit-badges-inline">${badges}</div>` : ""}
+        ${cmNote}
+      </div>
+      <div class="crit-score-col">
+        <button class="score-btn yes ${yesActive}" onclick="setScore('${crit.id}','yes')">YES</button>
+        <button class="score-btn no  ${noActive}"  onclick="setScore('${crit.id}','no')">NO</button>
+        <button class="score-btn na  ${naActive}"  onclick="setScore('${crit.id}','na')">N/A</button>
+      </div>
+    </div>`;
+}
+
+function makeSubsecRow(group) {
+  return `<div class="subsec-row">
+    <div class="subsec-dot" style="background:${group.color}"></div>
+    <span class="subsec-name" style="color:${group.color}">${group.label}</span>
+    ${group.desc ? `<span class="subsec-desc">— ${group.desc}</span>` : ""}
+  </div>`;
+}
+
+function buildSection(secId, secData) {
+  const body = document.getElementById('body-' + secId);
+  if (!body) return;
+  let html = "";
+  if (secData.groups) {
+    secData.groups.forEach(g => {
+      html += makeSubsecRow(g);
+      g.criteria.forEach(c => { html += makeCritRow(c); });
+    });
+  } else {
+    secData.criteria.forEach(c => { html += makeCritRow(c); });
+  }
+  body.innerHTML = html;
+}
+
+function buildSectionF() {
+  const brand = getActiveBrand();
+  const fData = SECTION_F[brand];
+  const body = document.getElementById('body-F');
+  const fColor = fData.color;
+  document.getElementById('f-letter').style.color = fColor;
+  document.getElementById('f-title').textContent = fData.label;
+  document.getElementById('f-sub').textContent = fData.sub;
+  document.getElementById('score-chip-F').style.color = fColor;
+  const weightTag = document.getElementById('weight-F');
+  const tier = getActiveTier();
+  const w = fData.weights[tier];
+  weightTag.textContent = tier.toUpperCase().replace('T','T') + ' ' + w + '%';
+
+  let html = "";
+  fData.groups.forEach(g => {
+    html += makeSubsecRow(g);
+    g.criteria.forEach(c => { html += makeCritRow(c); });
+  });
+  body.innerHTML = html;
+}
+
+function buildAll() {
+  ['A','B','C','D','E'].forEach(id => {
+    buildSection(id, SECTIONS[id]);
+    const w = SECTIONS[id].weights[getActiveTier()];
+    document.getElementById('weight-' + id).textContent = getActiveTier().toUpperCase().replace('T','T') + ' ' + w + '%';
+  });
+  buildSectionF();
+  buildSectionScoreChips();
+  injectPhotoUploadPanels();
+  recalc();
+}
+
+function buildSectionScoreChips() {
+  const brand = getActiveBrand();
+  const fData = SECTION_F[brand];
+  const tier = getActiveTier();
+  const chips = [
+    {id:'A', color:'var(--amber)', w: SECTIONS.A.weights[tier]},
+    {id:'B', color:'var(--blue)',  w: SECTIONS.B.weights[tier]},
+    {id:'C', color:'#5aaa52',      w: SECTIONS.C.weights[tier]},
+    {id:'D', color:'var(--amber)', w: SECTIONS.D.weights[tier]},
+    {id:'E', color:'var(--purple)',w: SECTIONS.E.weights[tier]},
+    {id:'F', color:fData.color,    w: fData.weights[tier]},
+  ];
+  document.getElementById('section-scores').innerHTML = chips.map(c =>
+    `<div class="sec-score-chip" id="dash-chip-${c.id}">
+      <span class="sec-letter" style="color:${c.color}">${c.id}</span>
+      <span class="sec-pct" style="color:${c.color}" id="dash-pct-${c.id}">—</span>
+      <span class="sec-lbl">${c.w}%</span>
+    </div>`
+  ).join('');
+}
+
+// ── SCORING ───────────────────────────────────────────────────────────────────
+function setScore(id, val) {
+  if (scores[id] === val) {
+    delete scores[id];
+  } else {
+    scores[id] = val;
+  }
+  // refresh just the buttons in this row
+  const row = document.getElementById('row-' + id);
+  if (row) {
+    row.querySelectorAll('.score-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (scores[id] && btn.classList.contains(scores[id])) btn.classList.add('active');
+    });
+  }
+  recalc();
+}
+
+function getAllCriteria(secId) {
+  if (secId === 'F') {
+    const brand = getActiveBrand();
+    return SECTION_F[brand].groups.flatMap(g => g.criteria);
+  }
+  const sec = SECTIONS[secId];
+  if (sec.groups) return sec.groups.flatMap(g => g.criteria);
+  return sec.criteria;
+}
+
+function calcSection(secId) {
+  const crits = getAllCriteria(secId).filter(c => isCritApplicable(c));
+  let yes = 0, total = 0;
+  crits.forEach(c => {
+    const s = scores[c.id];
+    if (s === 'yes') { yes++; total++; }
+    else if (s === 'no') { total++; }
+    // na excluded from denominator
+  });
+  return { yes, total, pct: total > 0 ? Math.round(yes / total * 100) : null };
+}
+
+function getWeight(secId) {
+  const tier = getActiveTier();
+  if (secId === 'F') return SECTION_F[getActiveBrand()].weights[tier];
+  return SECTIONS[secId].weights[tier];
+}
+
+function recalc() {
+  const secs = ['A','B','C','D','E','F'];
+  let totalWeightedScore = 0, totalWeight = 0;
+  let itemsScored = 0, itemsTotal = 0;
+
+  secs.forEach(id => {
+    const { yes, total, pct } = calcSection(id);
+    itemsScored += yes + (total - yes); // yes + no
+    itemsTotal += getAllCriteria(id).filter(c => isCritApplicable(c)).length;
+    const w = getWeight(id);
+
+    // Update section chip in header
+    const chip = document.getElementById('score-chip-' + id);
+    const dashPct = document.getElementById('dash-pct-' + id);
+    if (chip) chip.textContent = pct !== null ? pct + '%' : '—';
+    if (dashPct) dashPct.textContent = pct !== null ? pct + '%' : '—';
+
+    if (pct !== null) {
+      totalWeightedScore += (pct / 100) * w;
+      totalWeight += w;
+    }
+  });
+
+  const overall = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight * 100) : null;
+  const pctEl = document.getElementById('overall-pct');
+  const gradeEl = document.getElementById('overall-grade');
+  const progressEl = document.getElementById('progress-fill');
+  const countEl = document.getElementById('items-count');
+
+  if (overall !== null) {
+    pctEl.textContent = overall + '%';
+    const grade = getGrade(overall);
+    gradeEl.textContent = grade.label;
+    gradeEl.className = 'grade-badge ' + grade.cls;
+    progressEl.style.width = overall + '%';
+    progressEl.style.background = grade.color;
+  } else {
+    pctEl.textContent = '—';
+    gradeEl.textContent = '—';
+    gradeEl.className = 'grade-badge';
+    progressEl.style.width = '0%';
+  }
+  countEl.textContent = `${itemsScored} of ${itemsTotal} items scored`;
+  updateSummary();
+}
+
+function getGrade(pct) {
+  if (pct >= 90) return { label:'Gold', cls:'grade-gold', color:'var(--gold)' };
+  if (pct >= 80) return { label:'A',    cls:'grade-a',    color:'var(--blue)' };
+  if (pct >= 70) return { label:'B',    cls:'grade-b',    color:'#6aaa62' };
+  if (pct >= 60) return { label:'C',    cls:'grade-c',    color:'var(--amber)' };
+  if (pct >= 50) return { label:'D',    cls:'grade-d',    color:'#e08030' };
+  return              { label:'E',    cls:'grade-e',    color:'var(--red)' };
+}
+
+// ── SUMMARY ───────────────────────────────────────────────────────────────────
+function updateSummary() {
+  const storeEl = document.getElementById('store-select');
+  const countryEl = document.getElementById('country');
+  document.getElementById('sum-store').textContent   = storeEl.options[storeEl.selectedIndex]?.text || '—';
+  document.getElementById('sum-brand').textContent   = document.getElementById('brand').options[document.getElementById('brand').selectedIndex]?.text || '—';
+  document.getElementById('sum-country') && (document.getElementById('sum-country').textContent = countryEl.options[countryEl.selectedIndex]?.text || '—');
+  document.getElementById('sum-tier').textContent    = document.getElementById('tier').options[document.getElementById('tier').selectedIndex].text;
+  document.getElementById('sum-date').textContent    = document.getElementById('audit-date').value || '—';
+  document.getElementById('sum-auditor').textContent = getAuditorDisplay();
+  const cmTxt = document.getElementById('cm-display')?.textContent || '—';
+  document.getElementById('sum-cm') && (document.getElementById('sum-cm').textContent = cmTxt === '—' ? '—' : cmTxt);
+  const photoEl = document.getElementById('sum-photos');
+  if (photoEl) photoEl.textContent = getTotalPhotoCount() + ' photos attached';
+  document.getElementById('sum-type').textContent    = document.getElementById('audit-type').value;
+
+  const secs = ['A','B','C','D','E','F'];
+  const secNames = {
+    A:'Assets & Condition', B:'Brand Identity', C:'Cleanliness',
+    D:'Conquer & Visibility', E:'Marketing Execution', F:'Demo & Experience'
+  };
+  let rowsHtml = '';
+  let totalWeightedScore = 0, totalWeight = 0;
+
+  secs.forEach(id => {
+    const { yes, total, pct } = calcSection(id);
+    const w = getWeight(id);
+    rowsHtml += `<div class="summary-row">
+      <span class="label">${id} — ${secNames[id]} <span style="font-size:10px;color:var(--text-muted)">(${w}%)</span></span>
+      <span class="value">${pct !== null ? pct + '%' : '—'}</span>
+    </div>`;
+    if (pct !== null) { totalWeightedScore += (pct / 100) * w; totalWeight += w; }
+  });
+  document.getElementById('sum-section-rows').innerHTML = rowsHtml;
+
+  const overall = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight * 100) : null;
+  const sumOverall = document.getElementById('sum-overall');
+  if (overall !== null) {
+    const grade = getGrade(overall);
+    sumOverall.textContent = overall + '% — ' + grade.label;
+    sumOverall.className = grade.cls;
+  } else {
+    sumOverall.textContent = '—';
+    sumOverall.className = '';
+  }
+
+  // Failed items
+  let failsHtml = '';
+  secs.forEach(id => {
+    getAllCriteria(id).forEach(c => {
+      if (scores[c.id] === 'no' && isCritApplicable(c)) {
+        failsHtml += `<div class="fail-item">${escHtml(c.id)} — ${escHtml(c.text.substring(0,100))}${c.text.length > 100 ? '…' : ''}</div>`;
+      }
+    });
+  });
+  document.getElementById('sum-fails').innerHTML = failsHtml || '<span style="color:var(--text-muted);font-size:12px;">No failed items yet</span>';
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+function toggleSec(id) {
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (chev) chev.classList.toggle('open', !isOpen);
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'summary') updateSummary();
+}
+
+function switchBrand() {
+  // clear F scores when brand changes
+  const brand = getActiveBrand();
+  SECTION_F[brand].groups.flatMap(g => g.criteria).forEach(c => delete scores[c.id]);
+  buildAll();
+}
+
+function resetAudit() {
+  if (!confirm("Reset all scores and photos? This cannot be undone.")) return;
+  scores = {};
+  resetPhotos();
+  buildAll();
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── ACTION ITEMS ──────────────────────────────────────────────────────────────
+let actionCount = 0;
+function addAction() {
+  actionCount++;
+  const id = 'action-' + actionCount;
+  const div = document.createElement('div');
+  div.className = 'action-row';
+  div.id = id;
+  div.innerHTML = `<textarea class="action-input" rows="2" placeholder="Describe the issue or action required..."></textarea>
+    <button class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById('action-list').appendChild(div);
+}
+
+// ── STORE DATABASE ─────────────────────────────────────────────────────────────
+// country → brand(s) available
+const COUNTRY_BRANDS = {
+  SG: ["sonos","bowers","marshall"],
+  MY: ["sonos","bowers"],
+  HK: ["sonos"],
+  TH: ["sonos"],
+};
+
+const BRAND_LABELS = {
+  sonos:    "Sonos",
+  bowers:   "Bowers & Wilkins",
+  marshall: "Marshall",
+};
+
+// country → stores list (add more countries as they come in)
+// Store entries: string = name only, object = {name, tier?, cm?}
+// tier: 't1'|'t2'|'t3' — auto-sets the tier dropdown when selected
+// cm: string — auto-fills the channel manager field
+const STORES = {
+  SG: [
+    {name:"— Select store —"},
+    // Challenger — Zhi Yong
+    {name:"Challenger @ Great World City",        cm:"Zhi Yong"},
+    {name:"Challenger @ Clementi Mall",           cm:"Zhi Yong"},
+    {name:"Challenger @ Tiong Bahru",             cm:"Zhi Yong"},
+    {name:"Challenger @ Parkway Parade",          cm:"Zhi Yong"},
+    {name:"Challenger @ JEM",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Bugis B1",                cm:"Zhi Yong"},
+    {name:"Challenger @ Ang Mo Kio Hub",          cm:"Zhi Yong"},
+    {name:"Challenger @ Causeway Point",          cm:"Zhi Yong"},
+    {name:"Challenger @ Jurong Point",            cm:"Zhi Yong"},
+    {name:"Challenger @ Northpoint",              cm:"Zhi Yong"},
+    {name:"Challenger @ Tampines 1",              cm:"Zhi Yong"},
+    {name:"Challenger @ Tampines Mall",           cm:"Zhi Yong"},
+    {name:"Challenger @ Plaza Singapura",         cm:"Zhi Yong"},
+    {name:"Challenger @ Vivocity",                cm:"Zhi Yong"},
+    {name:"Challenger @ NEX",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Bugis Junction",          cm:"Zhi Yong"},
+    {name:"Challenger @ Lot One",                 cm:"Zhi Yong"},
+    {name:"Challenger @ IMM",                     cm:"Zhi Yong"},
+    {name:"Challenger @ ION",                     cm:"Zhi Yong"},
+    {name:"Challenger @ 313",                     cm:"Zhi Yong"},
+    {name:"Challenger @ Paya Lebar HQ",           cm:"Zhi Yong"},
+    {name:"Challenger @ Raffles City",            cm:"Zhi Yong"},
+    {name:"Challenger @ Suntec City",             cm:"Zhi Yong"},
+    {name:"Challenger @ Jewel",                   cm:"Zhi Yong"},
+    {name:"Challenger @ Pasir Ris Mall",          cm:"Zhi Yong"},
+    {name:"Challenger @ Woodleigh Mall",          cm:"Zhi Yong"},
+    // Harvey Norman — Johnathan
+    {name:"Harvey Norman @ Millenia Walk",         tier:"t1", cm:"Johnathan"},
+    {name:"Harvey Norman @ Parkway Parade",        tier:"t1", cm:"Johnathan"},
+    {name:"Harvey Norman @ West Gate",             tier:"t1", cm:"Johnathan"},
+    {name:"Harvey Norman @ Viva",                  tier:"t2", cm:"Johnathan"},
+    {name:"Harvey Norman @ West Mall",             tier:"t2", cm:"Johnathan"},
+    {name:"Harvey Norman @ Northpoint",            tier:"t2", cm:"Johnathan"},
+    {name:"Harvey Norman @ Hougang Mall",          tier:"t3", cm:"Johnathan"},
+    {name:"Harvey Norman @ Seletar Mall",          tier:"t3", cm:"Johnathan"},
+    {name:"Harvey Norman @ Punggol Coast",         tier:"t3", cm:"Johnathan"},
+    {name:"Harvey Norman @ Lot One",               tier:"t3", cm:"Johnathan"},
+    {name:"Harvey Norman @ Jurong Point",          tier:"t3", cm:"Johnathan"},
+    {name:"Harvey Norman @ Bukit Panjang",                    cm:"Johnathan"},
+    // Best Denki — Johnathan
+    {name:"Best Denki @ Ngee Ann City",           tier:"t1", cm:"Johnathan"},
+    {name:"Best Denki @ Vivocity",                tier:"t1", cm:"Johnathan"},
+    {name:"Best Denki (Singapore) Pte Ltd @ Funan", tier:"t1", cm:"Johnathan"},
+    {name:"Best Denki @ Great World City",        tier:"t2", cm:"Johnathan"},
+    {name:"Best Denki @ Plaza Singapura",         tier:"t2", cm:"Johnathan"},
+    {name:"Best Denki @ Junction 8",              tier:"t3", cm:"Johnathan"},
+    {name:"Best Denki @ IMM",                     tier:"t3", cm:"Johnathan"},
+    // Courts — Jerome
+    {name:"Courts @ The Heeren",                  tier:"t1", cm:"Jerome"},
+    {name:"Courts @ JEM",                                    cm:"Jerome"},
+    {name:"Courts @ Megastore",                   tier:"t1", cm:"Jerome"},
+    {name:"Courts @ NEX",                         tier:"t3", cm:"Jerome"},
+    {name:"Courts @ Jurong Point",                tier:"t3", cm:"Jerome"},
+    // Takashimaya — Goh Xinyi
+    {name:"Takashimaya @ Ngee Ann City",          cm:"Goh Xinyi"},
+    // TK FOTO — Jerome
+    {name:"TK FOTO @ Funan",                      cm:"Jerome"},
+    // Gain City
+    {name:"Gain City @ Sungei Kadut Megastore"},
+    {name:"Gain City @ Marina Square"},
+    // Others
+    {name:"Chamber (Sports Fashion Pte Ltd)"},
+    {name:"AV Intelligence"},
+    {name:"Parisilk @ Holland Village"},
+    {name:"Commune Lifestyle Pte Ltd"},
+    // Connect IT — Jerome
+    {name:"Connect IT @ Somerset",                cm:"Jerome"},
+    // Others
+    {name:"Actually"},
+    {name:"Forty Two"},
+    // Sprint Cass (Airport) — Sinclair
+    {name:"Sprint Cass @ T1 E1",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T1 H1",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T2 E2",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T2 M2",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T3 E3",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T3 M3",                  cm:"Sinclair"},
+    {name:"Sprint Cass @ T4 E4",                  cm:"Sinclair"},
+    // Others
+    {name:"Excel Hardware"},
+    {name:"Zepplin & Co"},
+  ],
+  MY: [
+    {name:"— Select store —"},
+    // Harvey Norman — Adrian
+    {name:"Harvey Norman (MY) @ Ikano (IPC)",              tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Mid Valley",               tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Johor Paradigm Mall",      tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Johor Southkey",           tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ JB Toppen",                tier:"t2", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Ipoh Parade",              tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ 1 Utama",                  tier:"t1", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Suria Sabah",              tier:"t2", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Pavilion Damansara Heights",tier:"t2", cm:"Adrian"},
+    {name:"Harvey Norman (MY) @ Bintulu",                  tier:"t2", cm:"Adrian"},
+    // Harvey Norman — Jin Nong
+    {name:"Harvey Norman (MY) @ Sunway Pyramid",           tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Pavilion KL",              tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Queensbay Mall",           tier:"t1", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ IOI City Mall",            tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Vivacity Mall",            tier:"t1", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Miri Times Square",        tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Ikea Batu Kawan",          tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Pavilion Bukit Jalil",     tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Sunway Carnival",          tier:"t1", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Penang Sunshine",          tier:"t2", cm:"Jin Nong"},
+    {name:"Harvey Norman (MY) @ Gurney Plaza",             tier:"t2", cm:"Jin Nong"},
+    // Thunder Match (TMT) — Jin Nong
+    {name:"TMT @ Mid Valley",                              tier:"t1", cm:"Jin Nong"},
+    {name:"TMT @ Sunway Pyramid",                          tier:"t1", cm:"Jin Nong"},
+    // Thunder Match (TMT) — Adrian
+    {name:"TMT @ JB Southkey",                             tier:"t2", cm:"Adrian"},
+    // Flash Gadgets — Jin Nong
+    {name:"Flash Gadgets @ The Gardens Mall",              tier:"t1", cm:"Jin Nong"},
+    {name:"Flash Gadgets @ IOI City Mall",                 tier:"t2", cm:"Jin Nong"},
+    {name:"Flash Gadgets @ Mid Valley",                    cm:"Jin Nong"},
+    {name:"Flash Gadgets @ Suria KLCC",                    cm:"Jin Nong"},
+    // All IT
+    {name:"All IT @ One Utama"},
+    // Urban Republic — Jin Nong
+    {name:"Urban Republic @ Pavilion KL",                  tier:"t3", cm:"Jin Nong"},
+    {name:"Urban Republic @ Queensbay Mall",               tier:"t3", cm:"Jin Nong"},
+    {name:"Urban Republic @ Gurney Plaza",                 tier:"t3", cm:"Jin Nong"},
+    // Urban Republic — Adrian
+    {name:"Urban Republic @ Tebrau City",                  tier:"t3", cm:"Adrian"},
+    {name:"Urban Republic @ Aeon Bukit Tinggi",            tier:"t3", cm:"Adrian"},
+    // PC Image
+    {name:"PC Image @ Johor Southkey"},
+    {name:"PC Image @ Sibu Delta Mall"},
+  ],
+  HK: [
+    {name:"— Select store —"},
+    // TechLife — T1 (Ginger Kiang)
+    {name:"TechLife City Plaza",           tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Melbourne Plaza",      tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife New Town Plaza",       tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Ocean Centre",         tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Telford Garden",       tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Times Square",         tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Ma On Shan",           tier:"t1", cm:"Ginger Kiang"},
+    {name:"TechLife Tai Po",               tier:"t1", cm:"Ginger Kiang"},
+    // TechLife — T2 (Ginger Kiang)
+    {name:"TechLife Elements",             tier:"t2", cm:"Ginger Kiang"},
+    {name:"TechLife YOHO",                 tier:"t2", cm:"Ginger Kiang"},
+    // TechLife — T3 (Ginger Kiang)
+    {name:"TechLife APM",                  tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Diamond Hill",         tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Festival Walk",        tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Olympian City",        tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife PopCorn",              tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife The Wai",              tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Tsing Yi",             tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Tsuen Wan Plaza",      tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Tuen Mun Town",        tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Tung Chung",           tier:"t3", cm:"Ginger Kiang"},
+    {name:"TechLife Whampoa",              tier:"t3", cm:"Ginger Kiang"},
+    // AV Life — T2 (Ginger Kiang)
+    {name:"AV Life K11",                   tier:"t2", cm:"Ginger Kiang"},
+    {name:"AV Life New Town Plaza",        tier:"t2", cm:"Ginger Kiang"},
+    {name:"AV Life SOGO",                  tier:"t2", cm:"Ginger Kiang"},
+    // AV Life — T3 (Ginger Kiang)
+    {name:"AV Life CityPlaza",             tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life East Point City",       tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Lok Fu",                tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Olympian City",         tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Times Square",          tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Tsuen Wan Plaza",       tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Tuen Mun",              tier:"t3", cm:"Ginger Kiang"},
+    {name:"AV Life Wong Chuk Hang",        tier:"t3", cm:"Ginger Kiang"},
+    // Cosmic Tech (Ginger Kiang)
+    {name:"Cosmic Tech SSP",               tier:"t3", cm:"Ginger Kiang"},
+    // Fortress (Ginger Kiang)
+    {name:"Fortress Golden Centre",        tier:"t3", cm:"Ginger Kiang"},
+    // Ricky's stores
+    {name:"Super King",                    cm:"Ricky"},
+    {name:"Super King CWB",                cm:"Ricky"},
+    {name:"Radio Unison",                  cm:"Ricky"},
+  ],
+  TH: [
+    {name:"— Select store —"},
+    // Powerbuy
+    {name:"Powerbuy @ Central World",       cm:"Ning"},
+    {name:"Powerbuy @ Central Chidlom",     cm:"Ning"},
+    {name:"Powerbuy @ Central Phuket",      cm:"Ning"},
+    {name:"Powerbuy @ Central Samui",       cm:"Ning"},
+    // Dotlife
+    {name:"Dotlife @ Central World",        cm:"Ning"},
+    {name:"Dotlife @ Paragon",              cm:"Ning"},
+    {name:"Dotlife @ Central Eastville",    cm:"Ning"},
+    {name:"Dotlife @ Central Rama 9",       cm:"Ning"},
+    {name:"Dotlife @ Promenade",            cm:"Ning"},
+    {name:"Dotlife @ Icon Siam",            cm:"Ning"},
+    {name:"Dotlife @ Mega Bangna",          cm:"Ning"},
+    {name:"Dotlife @ Central Westgate",     cm:"Ning"},
+    {name:"Dotlife @ Central Autthaya",     cm:"Ning"},
+    {name:"Dotlife @ Central Udonthani",    cm:"Ning"},
+    {name:"Dotlife @ Central Phuket",       cm:"Ning"},
+    {name:"Dotlife @ Central Chiangmai",    cm:"Ning"},
+    {name:"Dotlife @ Siam Paragon",         cm:"Ning"},
+    {name:"Dotlife @ Chiang Mai",           cm:"Ning"},
+    // Others
+    {name:"APP @ Paragon",                  cm:"Ning"},
+    {name:"iStudio @ Siam Paragon",         cm:"Ning"},
+    {name:"Digital Lab @ Siam Discovery",   cm:"Ning"},
+    {name:"Tech House @ One Bangkok",       cm:"Ning"},
+    {name:"LOFT @ Siam Paragon",            cm:"Ning"},
+  ],
+};
+
+// ── AUDITOR ───────────────────────────────────────────────────────────────────
+function onAuditorChange() {
+  const val = document.getElementById('auditor').value;
+  const staffField = document.getElementById('staff-name-field');
+  staffField.style.display = val === 'other' ? 'block' : 'none';
+  if (val !== 'other') document.getElementById('staff-name').value = '';
+  updateSummary();
+}
+
+function getAuditorDisplay() {
+  const val = document.getElementById('auditor').value;
+  if (!val) return '—';
+  if (val === 'other') {
+    const staff = document.getElementById('staff-name').value.trim();
+    return staff ? `${staff} (store staff)` : 'Store staff (name not entered)';
+  }
+  return val;
+}
+
+// ── CASCADE LOGIC ─────────────────────────────────────────────────────────────
+function getActiveBrand() { return document.getElementById('brand').value; }
+
+function getSelectedStore() {
+  const sel = document.getElementById('store-select');
+  const idx = sel.selectedIndex;
+  const country = document.getElementById('country').value;
+  return STORES[country]?.[idx] || null;
+}
+
+function onCountryChange() {
+  populateBrands();
+  populateStores();
+  switchBrand();
+}
+
+function onBrandChange() {
+  switchBrand();
+}
+
+function onStoreChange() {
+  const store = getSelectedStore();
+  // Auto-set tier if store has tier data
+  if (store && store.tier) {
+    document.getElementById('tier').value = store.tier;
+    buildAll(); // rebuild with new tier weights
+  }
+  // Auto-fill CM if store has CM data
+  const cmEl = document.getElementById('cm-display');
+  if (cmEl) {
+    if (store && store.cm) {
+      cmEl.textContent = store.cm;
+      cmEl.style.color = 'var(--text)';
+      document.getElementById('cm-field').style.display = 'block';
+    } else {
+      cmEl.textContent = '—';
+      document.getElementById('cm-field').style.display = store && store.name !== '— Select store —' ? 'none' : 'none';
+    }
+  }
+  updateSummary();
+}
+
+function populateBrands() {
+  const country = document.getElementById('country').value;
+  const brands = COUNTRY_BRANDS[country] || ["sonos"];
+  const sel = document.getElementById('brand');
+  const prev = sel.value;
+  sel.innerHTML = brands.map(b =>
+    `<option value="${b}"${b===prev?' selected':''}>${BRAND_LABELS[b]}</option>`
+  ).join('');
+  if (!brands.includes(prev)) sel.value = brands[0];
+}
+
+function populateStores() {
+  const country = document.getElementById('country').value;
+  const stores = STORES[country] || [{name:"— Select store —"}];
+  const sel = document.getElementById('store-select');
+  sel.innerHTML = stores.map(s =>
+    `<option value="${s.name}">${s.name}</option>`
+  ).join('');
+  // Reset CM display
+  const cmEl = document.getElementById('cm-display');
+  if (cmEl) { cmEl.textContent = '—'; cmEl.style.color = 'var(--text-muted)'; }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── SUBMIT AUDIT ──────────────────────────────────────────────────────────────
+function submitAudit() {
+  const store = document.getElementById('store-select');
+  if (!store.value || store.value.startsWith('—')) { showToast('Please select a store first'); return; }
+  const overall = calcOverall();
+  if (overall === null) { showToast('Please score at least one criterion first'); return; }
+
+  const record = buildAuditRecord();
+  saveAuditLocally(record);
+
+  const photoCount = getTotalPhotoCount();
+  const sheetsUrl = localStorage.getItem('sheetsUrl');
+
+  if (sheetsUrl && photoCount > 0) {
+    showToast(`✓ Audit saved — uploading ${photoCount} photo${photoCount>1?'s':''}...`, 3000);
+    uploadPhotosToSheets(record).then(() => {
+      showToast('✓ All photos saved to Drive');
+      sendToSheetsWithRecord({...record, photoSections: Object.fromEntries(
+        Object.entries(sectionPhotos).map(([k,v]) => [k, v.map(p => p.driveUrl).filter(Boolean)])
+      )});
+    });
+  } else {
+    if (sheetsUrl) sendToSheetsWithRecord(record);
+    showToast(photoCount > 0 ? '✓ Audit saved — set up Google Sheets URL to save photos to Drive' : '✓ Audit submitted and saved to Dashboard');
+  }
+
+  switchTab('summary', document.querySelectorAll('.nav-tab')[2]);
+}
+
+function buildAuditRecord() {
+  const storeEl = document.getElementById('store-select');
+  const countryEl = document.getElementById('country');
+  const brandEl = document.getElementById('brand');
+  const tierEl = document.getElementById('tier');
+  const store = getSelectedStore();
+  const secs = ['A','B','C','D','E','F'];
+  const secScores = {};
+  secs.forEach(id => {
+    const {yes,total,pct} = calcSection(id);
+    secScores[id] = pct;
+  });
+  const overall = calcOverall();
+  const grade = overall !== null ? getGrade(overall).label : '—';
+
+  // Collect failed items
+  const failedItems = [];
+  secs.forEach(id => {
+    getAllCriteria(id).forEach(c => {
+      if (scores[c.id] === 'no' && isCritApplicable(c)) failedItems.push(c.id + ': ' + c.text.substring(0,60));
+    });
+  });
+
+  // Collect action items
+  const actions = Array.from(document.querySelectorAll('#action-list textarea')).map(t => t.value.trim()).filter(Boolean);
+
+  let totalPassed = 0, totalItems = 0;
+  secs.forEach(id => {
+    getAllCriteria(id).filter(c => isCritApplicable(c)).forEach(c => {
+      if (scores[c.id] === 'yes') totalPassed++;
+      if (scores[c.id] === 'yes' || scores[c.id] === 'no') totalItems++;
+    });
+  });
+
+  return {
+    timestamp: new Date().toISOString(),
+    country: countryEl.value,
+    countryLabel: countryEl.options[countryEl.selectedIndex].text,
+    store: storeEl.options[storeEl.selectedIndex].text,
+    brand: brandEl.options[brandEl.selectedIndex].text,
+    tier: tierEl.options[tierEl.selectedIndex].text,
+    cm: store?.cm || '—',
+    auditor: getAuditorDisplay(),
+    date: document.getElementById('audit-date').value,
+    type: document.getElementById('audit-type').value,
+    cmVerifiedCount: ['A','B','C','D','E','F'].reduce((n, id) => {
+      const sec = id === 'F' ? SECTION_F[getActiveBrand()] : SECTIONS[id];
+      if (!sec) return n;
+      const getCriteria = s => s.groups ? s.groups.flatMap(g => g.criteria) : s.criteria;
+      return n + getCriteria(sec).filter(c => c.cmVerified && scores[c.id] && scores[c.id] !== 'na').length;
+    }, 0),
+    scoreA: secScores.A, scoreB: secScores.B, scoreC: secScores.C,
+    scoreD: secScores.D, scoreE: secScores.E, scoreF: secScores.F,
+    overall, grade,
+    passed: totalPassed, total: totalItems,
+    failedItems: failedItems.join(' | '),
+    actions: actions.join(' | '),
+  };
+}
+
+function calcOverall() {
+  const secs = ['A','B','C','D','E','F'];
+  let totalWeightedScore = 0, totalWeight = 0;
+  secs.forEach(id => {
+    const {pct} = calcSection(id);
+    const w = getWeight(id);
+    if (pct !== null) { totalWeightedScore += (pct / 100) * w; totalWeight += w; }
+  });
+  return totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight * 100) : null;
+}
+
+// ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
+function saveAuditLocally(record) {
+  const key = 'retailAuditHistory';
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+  history.unshift(record); // newest first
+  if (history.length > 200) history = history.slice(0, 200);
+  localStorage.setItem(key, JSON.stringify(history));
+}
+
+function getAuditHistory() {
+  try { return JSON.parse(localStorage.getItem('retailAuditHistory') || '[]'); } catch(e) { return []; }
+}
+
+function clearHistory() {
+  if (!confirm('Clear all local audit history? This cannot be undone.')) return;
+  localStorage.removeItem('retailAuditHistory');
+  renderDashboard();
+  showToast('History cleared');
+}
+
+// ── GOOGLE SHEETS ─────────────────────────────────────────────────────────────
+function saveSheetUrl() {
+  const url = document.getElementById('sheets-url').value.trim();
+  localStorage.setItem('sheetsUrl', url);
+  document.getElementById('sheets-url-status').textContent = url ? '✓ URL saved' : '';
+}
+
+function sendToSheets() {
+  const record = buildAuditRecord();
+  const url = localStorage.getItem('sheetsUrl');
+  if (!url) { showToast('Set up Google Sheets URL in ⚙ Setup first'); switchTab('setup', document.querySelectorAll('.nav-tab')[4]); return; }
+  sendToSheetsWithRecord(record);
+}
+
+function sendToSheetsWithRecord(record) {
+  const url = localStorage.getItem('sheetsUrl');
+  if (!url) return;
+  // Use no-cors mode — Google Apps Script redirects block regular CORS requests
+  // Data still sends successfully, we just can't read the response
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(record)
+  })
+    .then(() => showToast('📊 Sent to Google Sheets!'))
+    .catch(() => showToast('Could not reach Google Sheets — check URL in Setup'));
+}
+
+function testSheetConnection() {
+  const url = document.getElementById('sheets-url').value.trim();
+  if (!url) { showToast('Paste your Web App URL first'); return; }
+  const statusEl = document.getElementById('sheets-url-status');
+  statusEl.textContent = 'Testing...';
+  // Google Apps Script redirects cause CORS errors in fetch — use no-cors mode
+  // A successful no-cors fetch means the endpoint exists and is reachable
+  fetch(url, { mode: 'no-cors' })
+    .then(() => {
+      statusEl.textContent = '✓ Connected — URL looks good';
+      statusEl.style.color = 'var(--green)';
+      showToast('✓ Connection successful!');
+    })
+    .catch(() => {
+      statusEl.textContent = '✗ Could not reach URL — check it is deployed as Anyone';
+      statusEl.style.color = 'var(--red)';
+      showToast('Connection failed — see status below');
+    });
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const history = getAuditHistory();
+  if (!history.length) { showToast('No audit history to export'); return; }
+  const headers = ['Timestamp','Country','Store','Brand','Tier','CM','Auditor','Date','Type','A%','B%','C%','D%','E%','F%','Overall%','Grade','Passed','Total','Failed Items','Actions'];
+  const rows = history.map(r => [
+    r.timestamp, r.countryLabel||r.country, r.store, r.brand, r.tier, r.cm,
+    r.auditor, r.date, r.type,
+    r.scoreA??'', r.scoreB??'', r.scoreC??'', r.scoreD??'', r.scoreE??'', r.scoreF??'',
+    r.overall, r.grade, r.passed, r.total,
+    '"'+(r.failedItems||'').replace(/"/g,'""')+'"',
+    '"'+(r.actions||'').replace(/"/g,'""')+'"',
+  ].join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'retail_audit_results_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  showToast('CSV exported');
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function gradeColor(grade) {
+  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)'}[grade] || 'var(--text-muted)';
+}
+
+function barColor(pct) {
+  if (pct >= 90) return 'var(--gold)';
+  if (pct >= 80) return 'var(--blue)';
+  if (pct >= 70) return 'var(--green)';
+  if (pct >= 60) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function renderDashboard() {
+  const history = getAuditHistory();
+  const n = history.length;
+
+  // Stats
+  document.getElementById('d-total').textContent = n;
+  if (n === 0) {
+    ['d-avg','d-gold','d-gold-rate','d-fails'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='—'; });
+    ['dash-by-country','dash-by-brand','dash-by-cm','dash-grades','dash-recent','dash-fails'].forEach(id => {
+      document.getElementById(id).innerHTML = '<div class="no-data">No audit data yet — complete and submit an audit to see it here</div>';
+    });
+    document.getElementById('local-data-count') && (document.getElementById('local-data-count').textContent = '0 audits stored locally.');
+    return;
+  }
+
+  const scores = history.map(r => r.overall).filter(s => s !== null && s !== undefined);
+  const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+  const goldCount = history.filter(r => r.grade === 'Gold').length;
+  const failCount = history.filter(r => ['D','E'].includes(r.grade)).length;
+
+  document.getElementById('d-avg').textContent = avg !== null ? avg + '%' : '—';
+  document.getElementById('d-gold').textContent = goldCount;
+  document.getElementById('d-gold-rate').textContent = n ? Math.round(goldCount/n*100)+'% gold rate' : '';
+  document.getElementById('d-fails').textContent = failCount;
+  document.getElementById('local-data-count') && (document.getElementById('local-data-count').textContent = `${n} audit${n!==1?'s':''} stored locally in this browser.`);
+
+  // Group helper
+  function groupAvg(key) {
+    const map = {};
+    history.forEach(r => {
+      const k = r[key] || '—';
+      if (!map[k]) map[k] = [];
+      if (r.overall !== null && r.overall !== undefined) map[k].push(r.overall);
+    });
+    return Object.entries(map).map(([k,vals]) => ({
+      label: k, avg: vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null, count: vals.length
+    })).sort((a,b) => (b.avg||0)-(a.avg||0));
+  }
+
+  function renderBars(containerId, data, labelWidth='140px') {
+    if (!data.length) { document.getElementById(containerId).innerHTML = '<div class="no-data">No data</div>'; return; }
+    document.getElementById(containerId).innerHTML = data.map(d => `
+      <div class="bar-row">
+        <div class="bar-label" style="width:${labelWidth}">${d.label} <span style="color:var(--text-muted);font-size:9px;">(${d.count})</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${d.avg||0}%;background:${barColor(d.avg||0)}"></div></div>
+        <div class="bar-val" style="color:${barColor(d.avg||0)}">${d.avg !== null ? d.avg+'%' : '—'}</div>
+      </div>`).join('');
+  }
+
+  renderBars('dash-by-country', groupAvg('countryLabel'));
+  renderBars('dash-by-brand',   groupAvg('brand'));
+  renderBars('dash-by-cm',      groupAvg('cm'), '160px');
+
+  // Grade distribution
+  const grades = {Gold:0,A:0,B:0,C:0,D:0,E:0};
+  history.forEach(r => { if (grades[r.grade] !== undefined) grades[r.grade]++; });
+  document.getElementById('dash-grades').innerHTML = Object.entries(grades).map(([g,c]) => `
+    <div style="flex:1;min-width:60px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 8px;text-align:center;">
+      <div style="font-size:20px;font-weight:800;color:${gradeColor(g)}">${g}</div>
+      <div style="font-size:18px;font-weight:700;color:${gradeColor(g)};margin-top:2px">${c}</div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${n?Math.round(c/n*100):0}%</div>
+    </div>`).join('');
+
+  // Recent audits table
+  const recent = history.slice(0, 30);
+  document.getElementById('dash-recent').innerHTML = `
+    <table class="audit-table">
+      <thead><tr>
+        <th>Date</th><th>Store</th><th>Country</th><th>Brand</th><th>CM</th><th>Auditor</th><th>Score</th><th>Grade</th>
+      </tr></thead>
+      <tbody>${recent.map(r => `<tr>
+        <td>${r.date||'—'}</td>
+        <td style="color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.store}</td>
+        <td>${r.countryLabel||r.country||'—'}</td>
+        <td>${r.brand||'—'}</td>
+        <td>${r.cm||'—'}</td>
+        <td>${r.auditor||'—'}</td>
+        <td style="font-weight:700;color:${barColor(r.overall||0)}">${r.overall !== null && r.overall !== undefined ? r.overall+'%' : '—'}</td>
+        <td><span class="grade-pill" style="color:${gradeColor(r.grade)};background:${gradeColor(r.grade)}18">${r.grade||'—'}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  // Most failed criteria
+  const failMap = {};
+  history.forEach(r => {
+    if (!r.failedItems) return;
+    r.failedItems.split(' | ').forEach(f => {
+      if (!f) return;
+      failMap[f] = (failMap[f] || 0) + 1;
+    });
+  });
+  const topFails = Object.entries(failMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if (!topFails.length) {
+    document.getElementById('dash-fails').innerHTML = '<div class="no-data">No failed criteria recorded yet</div>';
+  } else {
+    const maxF = topFails[0][1];
+    document.getElementById('dash-fails').innerHTML = topFails.map(([label,count]) => `
+      <div class="bar-row">
+        <div class="bar-label" style="width:300px;font-size:10px">${label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${count/maxF*100}%;background:var(--red)"></div></div>
+        <div class="bar-val" style="color:var(--red)">${count}x</div>
+      </div>`).join('');
+  }
+}
+
+// ── PHOTO REVIEW & COMMENTS ──────────────────────────────────────
+// Photos are submitted by CMs via the CM_Photo_Upload.html page
+// Here you load them, view them, and leave comments per section
+
+let reviewPhotos  = {};   // { secId: [{driveUrl, fileName, caption}] }
+let reviewComments = {};  // { secId: [{text, author, resolved, timestamp}] }
+let reviewAuditKey = '';  // store|date
+
+function getReviewKey() {
+  const store = document.getElementById('store-select');
+  const date  = document.getElementById('audit-date');
+  return `${store.options[store.selectedIndex]?.text || ''}|${date.value}`;
+}
+
+async function loadPhotosForSection(secId) {
+  const url = localStorage.getItem('sheetsUrl');
+  const key = getReviewKey();
+  if (!url || !key.includes('|') || key.startsWith('|')) {
+    showToast('Select a store and date first, then connect to Google Sheets in ⚙ Setup');
+    return;
+  }
+  const btn = document.getElementById(`load-btn-${secId}`);
+  if (btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
+  try {
+    const resp = await fetch(`${url}?action=getPhotos&auditKey=${encodeURIComponent(key)}&section=${secId}`);
+    const data = await resp.json();
+    reviewPhotos[secId] = Array.isArray(data) ? data : [];
+    renderReviewPanel(secId);
+    showToast(reviewPhotos[secId].length > 0
+      ? `✓ ${reviewPhotos[secId].length} photo${reviewPhotos[secId].length!==1?'s':''} loaded for Section ${secId}`
+      : `No photos submitted yet for Section ${secId}`);
+  } catch(e) {
+    showToast('Could not load photos — check Sheets URL in ⚙ Setup');
+    if (btn) { btn.textContent = 'Load Photos'; btn.disabled = false; }
+  }
+}
+
+async function loadAllPhotos() {
+  const url = localStorage.getItem('sheetsUrl');
+  const key = getReviewKey();
+  if (!url) return;
+  try {
+    const resp = await fetch(`${url}?action=getPhotos&auditKey=${encodeURIComponent(key)}`);
+    const data = await resp.json();
+    if (Array.isArray(data)) {
+      reviewPhotos = {};
+      data.forEach(p => {
+        if (!reviewPhotos[p.section]) reviewPhotos[p.section] = [];
+        reviewPhotos[p.section].push(p);
+      });
+      ['A','B','C','D','E','F'].forEach(id => renderReviewPanel(id));
+      const total = data.length;
+      showToast(total > 0 ? `✓ ${total} photos loaded` : 'No photos submitted yet for this store/date');
+    }
+  } catch(e) {}
+}
+
+async function loadCommentsForSection(secId) {
+  const url = localStorage.getItem('sheetsUrl');
+  const key = getReviewKey();
+  if (!url) return;
+  try {
+    const resp = await fetch(`${url}?action=getComments&auditKey=${encodeURIComponent(key)}&section=${secId}`);
+    const data = await resp.json();
+    reviewComments[secId] = Array.isArray(data) ? data : [];
+    renderCommentsList(secId);
+  } catch(e) {}
+}
+
+async function postComment(secId) {
+  const textarea = document.getElementById(`comment-input-${secId}`);
+  const text = textarea?.value?.trim();
+  if (!text) { showToast('Enter a comment first'); return; }
+  const url = localStorage.getItem('sheetsUrl');
+  const key = getReviewKey();
+  const storeName = document.getElementById('store-select').options[document.getElementById('store-select').selectedIndex]?.text;
+
+  const comment = {
+    timestamp: new Date().toISOString(),
+    auditKey: key, store: storeName,
+    auditDate: document.getElementById('audit-date').value,
+    section: secId, author: 'Sylvia',
+    comment: text, resolved: false
+  };
+
+  if (!reviewComments[secId]) reviewComments[secId] = [];
+  reviewComments[secId].push(comment);
+  renderCommentsList(secId);
+  textarea.value = '';
+
+  if (url) {
+    try {
+      await fetch(url, { method:'POST', body: JSON.stringify({action:'saveComment', ...comment}) });
+      showToast('Comment saved');
+    } catch(e) { showToast('Saved locally — will sync when connection available'); }
+  }
+}
+
+async function resolveComment(secId, idx) {
+  if (!reviewComments[secId]) return;
+  reviewComments[secId][idx].resolved = true;
+  renderCommentsList(secId);
+  const url = localStorage.getItem('sheetsUrl');
+  const c = reviewComments[secId][idx];
+  if (url) {
+    try { await fetch(url, { method:'POST', body: JSON.stringify({action:'resolveComment', auditKey: c.auditKey, section: secId, index: idx}) }); }
+    catch(e) {}
+  }
+  showToast('Marked as resolved');
+}
+
+function renderReviewPanel(secId) {
+  const container = document.getElementById(`photo-panel-${secId}`);
+  if (!container) return;
+  const photos = reviewPhotos[secId] || [];
+  const comments = reviewComments[secId] || [];
+  const openComments = comments.filter(c => !c.resolved).length;
+
+  container.innerHTML = `
+    <div class="photo-review">
+      <div class="photo-review-title">
+        📷 Section ${secId} Photos
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${openComments > 0 ? `<span style="font-size:9px;color:var(--amber);">💬 ${openComments} open</span>` : ''}
+          <button class="load-photos-btn" id="load-btn-${secId}" onclick="loadPhotosForSection('${secId}')">
+            ${photos.length > 0 ? '↻ Reload' : 'Load Photos'}
+          </button>
+        </div>
+      </div>
+      ${photos.length > 0 ? `
+        <div class="photo-review-grid">
+          ${photos.map((p,i) => `<img class="review-thumb" src="${p.driveUrl || p.dataUrl || ''}" onclick="viewReviewPhoto('${secId}',${i})" title="${p.caption || p.fileName || ''}">`).join('')}
+        </div>` : `<div class="photo-no-data">No photos loaded — tap "Load Photos" to fetch CM submissions</div>`}
+      <div style="margin-top:10px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">COMMENTS</div>
+        <div id="comments-list-${secId}">
+          ${renderCommentsHtml(secId)}
+        </div>
+        <textarea class="comment-box" id="comment-input-${secId}" rows="2" placeholder="Add your audit comment for Section ${secId}..."></textarea>
+        <div style="display:flex;gap:6px;margin-top:5px;">
+          <button class="btn btn-gold btn-sm" onclick="postComment('${secId}')">Save Comment</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportSectionComments('${secId}')">Export</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderCommentsHtml(secId) {
+  const comments = reviewComments[secId] || [];
+  if (!comments.length) return '<div class="photo-no-data">No comments yet</div>';
+  return comments.map((c, i) => `
+    <div class="comment-thread-item ${c.resolved ? 'resolved' : ''}">
+      <div><span class="author">${c.author}</span>
+        <span style="color:var(--text-muted);font-size:10px;"> · ${new Date(c.timestamp).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+        ${c.resolved ? '<span class="resolved-tag">✓ Resolved</span>' : `<button onclick="resolveComment('${secId}',${i})" style="background:none;border:none;color:var(--green);font-size:9px;cursor:pointer;margin-left:6px;">Mark resolved</button>`}
+      </div>
+      <div style="margin-top:3px;color:var(--text-dim);font-size:11px;">${c.comment}</div>
+    </div>`).join('');
+}
+
+function renderCommentsList(secId) {
+  const el = document.getElementById(`comments-list-${secId}`);
+  if (el) el.innerHTML = renderCommentsHtml(secId);
+}
+
+function viewReviewPhoto(secId, idx) {
+  const photo = (reviewPhotos[secId] || [])[idx];
+  if (!photo) return;
+  const existing = document.getElementById('photo-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'photo-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:500;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-width:90vw;overflow:hidden;display:flex;flex-direction:column;">
+      <button onclick="document.getElementById('photo-modal').remove()" style="align-self:flex-end;background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:8px 12px;">✕</button>
+      <img src="${photo.driveUrl || photo.dataUrl || ''}" style="max-width:80vw;max-height:70vh;object-fit:contain;">
+      ${photo.caption || photo.fileName ? `<div style="padding:10px 14px;font-size:11px;color:var(--text-muted);">${photo.caption || photo.fileName}</div>` : ''}
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function exportSectionComments(secId) {
+  const comments = reviewComments[secId] || [];
+  if (!comments.length) { showToast('No comments to export'); return; }
+  const store = document.getElementById('store-select').options[document.getElementById('store-select').selectedIndex]?.text;
+  const date = document.getElementById('audit-date').value;
+  let text = `SECTION ${secId} COMMENTS\n${store} — ${date}\n${'='.repeat(40)}\n\n`;
+  comments.forEach(c => {
+    text += `[${c.resolved ? 'RESOLVED' : 'OPEN'}] ${c.author} — ${new Date(c.timestamp).toLocaleDateString('en-GB')}\n${c.comment}\n\n`;
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text],{type:'text/plain'}));
+  a.download = `${store}_${date}_Section${secId}_comments.txt`.replace(/[^a-zA-Z0-9._-]/g,'_');
+  a.click();
+}
+
+function injectPhotoUploadPanels() {
+  ['A','B','C','D','E','F'].forEach(id => {
+    const body = document.getElementById('body-' + id);
+    if (!body) return;
+    const existing = document.getElementById('photo-panel-' + id);
+    if (existing) existing.remove();
+    const panel = document.createElement('div');
+    panel.id = 'photo-panel-' + id;
+    body.parentElement.appendChild(panel);
+    // Load any cached comments
+    loadCommentsForSection(id);
+    renderReviewPanel(id);
+  });
+}
+
+function getTotalPhotoCount() { return 0; }
+function uploadPhotosToSheets() { return Promise.resolve(); }
+function resetPhotos() {
+  reviewPhotos = {}; reviewComments = {};
+  ['A','B','C','D','E','F'].forEach(id => renderReviewPanel(id));
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'summary') updateSummary();
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'setup') {
+    const saved = localStorage.getItem('sheetsUrl') || '';
+    document.getElementById('sheets-url').value = saved;
+    document.getElementById('sheets-url-status').textContent = saved ? '✓ URL saved' : '';
+    const n = getAuditHistory().length;
+    document.getElementById('local-data-count').textContent = `${n} audit${n!==1?'s':''} stored locally in this browser.`;
+  }
+}
+
+document.getElementById('audit-date').value = new Date().toISOString().split('T')[0];
+populateBrands();
+populateStores();
+buildAll();
+// Restore sheets URL if saved
+const _savedUrl = localStorage.getItem('sheetsUrl');
+if (_savedUrl) document.getElementById('sheets-url') && (document.getElementById('sheets-url').value = _savedUrl);
+</script>
+</body>
+</html>
