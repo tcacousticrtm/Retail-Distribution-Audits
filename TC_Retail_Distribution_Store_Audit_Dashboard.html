@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TC Retail Distribution Store Audit Dashboard</title>
+<style>
+:root {
+  --gold:#C8A84B; --gold-bg:rgba(200,168,75,0.09); --gold-border:rgba(200,168,75,0.22);
+  --bg:#0a0a0a; --surface:#111; --surface2:#161616; --surface3:#1c1c1c;
+  --border:#222; --border2:#2a2a2a;
+  --text:#e8e0d0; --text-dim:#888; --text-muted:#555;
+  --blue:#7aa8b8; --green:#6aaa62; --amber:#b8965a; --purple:#9a7ab8; --red:#c06060;
+  --t1:#4a9a6a; --t2:#C8A84B; --t3:#7aa8b8;
+  --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
+
+/* HEADER */
+.site-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:0;z-index:200;}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:52px;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:26px;height:26px;background:var(--gold);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#000;}
+.logo-text{font-size:13px;font-weight:600;}
+.logo-sub{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.week-badge{font-size:11px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);padding:4px 12px;border-radius:20px;}
+
+/* NAV */
+.nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;}
+.nav-tab{padding:11px 16px;font-size:11px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;user-select:none;}
+.nav-tab:hover{color:var(--text-dim);}
+.nav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* LAYOUT */
+.main{max-width:1200px;margin:0 auto;padding:24px 24px 80px;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.stat-num{font-size:28px;font-weight:800;line-height:1;letter-spacing:-1px;}
+.stat-label{font-size:10px;color:var(--text-muted);margin-top:4px;}
+.stat-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
+
+/* TIER PILL */
+.tier-pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.3px;}
+.tier-1{background:rgba(74,154,106,0.15);color:var(--t1);border:1px solid rgba(74,154,106,0.3);}
+.tier-2{background:rgba(200,168,75,0.12);color:var(--t2);border:1px solid rgba(200,168,75,0.25);}
+.tier-3{background:rgba(122,168,184,0.12);color:var(--t3);border:1px solid rgba(122,168,184,0.25);}
+.tier-none{background:#1a1a1a;color:#555;border:1px solid #2a2a2a;}
+
+/* STATUS PILL */
+.status-pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:600;}
+.status-submitted{background:rgba(106,170,98,0.12);color:var(--green);border:1px solid rgba(106,170,98,0.25);}
+.status-pending{background:rgba(192,96,96,0.12);color:var(--red);border:1px solid rgba(192,96,96,0.25);}
+.status-overdue{background:rgba(192,96,96,0.2);color:#ff8080;border:1px solid rgba(255,128,128,0.4);}
+.status-notdue{background:#1a1a1a;color:#555;border:1px solid #2a2a2a;}
+
+/* TABLE */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
+.tbl-header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.tbl-title{font-size:12px;font-weight:600;color:var(--text-dim);}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{padding:8px 12px;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;background:var(--surface2);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid #141414;color:var(--text-dim);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+td.store-name{color:var(--text);font-size:12px;}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-select{background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text-dim);font-size:11px;padding:5px 10px;cursor:pointer;font-family:inherit;}
+.filter-select:focus{outline:none;border-color:var(--gold);}
+.search-input{background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:11px;padding:5px 12px;font-family:inherit;flex:1;min-width:160px;}
+.search-input:focus{outline:none;border-color:var(--gold);}
+.filter-count{font-size:10px;color:var(--text-muted);margin-left:4px;}
+
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(13,1fr);gap:4px;margin-bottom:20px;}
+.cal-week{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 4px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.cal-week:hover{border-color:var(--gold);background:var(--gold-bg);}
+.cal-week.active{border-color:var(--gold);background:var(--gold-bg);}
+.cal-week.current-week{border-color:var(--green);background:rgba(106,170,98,0.08);}
+.cal-week-num{font-size:11px;font-weight:700;color:var(--text-dim);}
+.cal-week-count{font-size:9px;color:var(--text-muted);margin-top:3px;}
+.cal-week-dots{display:flex;justify-content:center;gap:2px;margin-top:4px;flex-wrap:wrap;}
+.cal-dot{width:5px;height:5px;border-radius:50%;}
+
+/* WEEK DETAIL */
+.week-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;}
+.week-section-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+
+/* PROGRESS */
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.progress-label{width:130px;flex-shrink:0;font-size:11px;color:var(--text-dim);}
+.progress-track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.4s;}
+.progress-val{width:50px;text-align:right;font-size:11px;font-weight:600;flex-shrink:0;}
+
+/* SETTINGS */
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
+.settings-title{font-size:13px;font-weight:600;color:var(--text-dim);margin-bottom:10px;}
+.setting-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:12px;color:var(--text-dim);}
+.setting-label{width:180px;flex-shrink:0;}
+.setting-input{background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:12px;padding:5px 10px;font-family:inherit;}
+.setting-input:focus{outline:none;border-color:var(--gold);}
+.btn{padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid;font-weight:500;transition:all 0.15s;}
+.btn-gold{border-color:var(--gold);background:var(--gold-bg);color:var(--gold);}
+.btn-gold:hover{background:rgba(200,168,75,0.16);}
+.btn-ghost{border-color:var(--border2);background:transparent;color:var(--text-dim);}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.btn-sm{padding:3px 9px;font-size:10px;}
+.btn-green{border-color:var(--green);background:rgba(106,170,98,0.08);color:var(--green);}
+.btn-red{border-color:var(--red);background:rgba(192,96,96,0.08);color:var(--red);}
+
+/* COUNTRY SECTION */
+.country-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
+.country-header{padding:12px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.country-flag{font-size:20px;}
+.country-name{font-size:14px;font-weight:700;color:var(--text);}
+.country-stats{display:flex;gap:16px;margin-left:auto;font-size:10px;color:var(--text-muted);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 20px;font-size:12px;color:var(--text-dim);z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+
+/* DRIVE INTEGRATION BOX */
+.drive-box{background:rgba(122,168,184,0.06);border:1px solid rgba(122,168,184,0.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;}
+.drive-box-title{font-size:12px;font-weight:600;color:var(--blue);margin-bottom:6px;}
+.drive-box-desc{font-size:11px;color:var(--text-muted);line-height:1.7;}
+/* COMMENTING */
+.comment-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-top:10px;}
+.comment-panel-title{font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.comment-item{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;margin-bottom:6px;}
+.comment-item.resolved{opacity:0.5;}
+.comment-meta{font-size:10px;color:var(--text-muted);margin-bottom:3px;display:flex;gap:8px;align-items:center;}
+.comment-author{font-weight:600;color:var(--text-dim);}
+.comment-text{font-size:12px;color:var(--text);line-height:1.5;}
+.comment-reply-block{background:var(--surface2);border-left:2px solid var(--blue);margin-top:4px;padding:6px 10px;border-radius:0 4px 4px 0;font-size:11px;color:var(--text-dim);}
+.comment-input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;padding:6px 10px;font-family:inherit;resize:none;box-sizing:border-box;}
+.comment-input:focus{outline:none;border-color:var(--gold);}
+.resolved-pill{font-size:9px;background:rgba(106,170,98,0.15);color:var(--green);border:1px solid rgba(106,170,98,0.3);border-radius:3px;padding:1px 5px;}
+
+@media(max-width:900px){.stat-grid{grid-template-columns:repeat(3,1fr);}.cal-grid{grid-template-columns:repeat(7,1fr);}}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr 1fr;}.cal-grid{grid-template-columns:repeat(4,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">TC</div>
+      <div>
+        <div class="logo-text">TC Retail Distribution Store Audit Dashboard</div>
+        <div class="logo-sub">SG · MY · HK · TH · Store Overview & Audit Scheduler</div>
+      </div>
+    </div>
+    <div id="current-week-badge" class="week-badge">Loading...</div>
+  </div>
+</div>
+
+<div class="nav-bar">
+  <div class="nav-inner">
+    <div class="nav-tab active" onclick="switchTab('overview',this)">📊 Overview</div>
+    <div class="nav-tab" onclick="switchTab('scores',this)">📈 Scores</div>
+    <div class="nav-tab" onclick="switchTab('directory',this)">🗂 Store Directory</div>
+    <div class="nav-tab" onclick="switchTab('calendar',this)">📅 Audit Calendar</div>
+    <div class="nav-tab" onclick="switchTab('thisweek',this)">⚡ This Week</div>
+    <div class="nav-tab" onclick="switchTab('settings',this)">⚙ Settings</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ══ OVERVIEW ══ -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="stat-grid" id="overview-stats"></div>
+  <div id="overview-countries"></div>
+</div>
+
+<!-- ══ STORE DIRECTORY ══ -->
+<div class="tab-panel" id="tab-directory">
+  <div class="filter-bar">
+    <input class="search-input" id="dir-search" type="text" placeholder="Search store name..." oninput="renderDirectory()">
+    <select class="filter-select" id="dir-country" onchange="renderDirectory()">
+      <option value="">All Countries</option>
+      <option>SG</option><option>MY</option><option>HK</option><option>TH</option>
+    </select>
+    <select class="filter-select" id="dir-tier" onchange="renderDirectory()">
+      <option value="">All Tiers</option>
+      <option value="1">T1 — Flagship</option>
+      <option value="2">T2 — Standard</option>
+      <option value="3">T3 — Basic</option>
+      <option value="null">Tier not set</option>
+    </select>
+    <select class="filter-select" id="dir-cm" onchange="renderDirectory()">
+      <option value="">All CMs</option>
+    </select>
+    <select class="filter-select" id="dir-brand" onchange="renderDirectory()">
+      <option value="">All Brands</option>
+      <option>Sonos</option><option>Marshall</option><option>Bowers</option>
+    </select>
+    <span class="filter-count" id="dir-count"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Country</th><th>Store</th><th>Retailer</th>
+        <th>Tier</th><th>Channel Manager</th><th>Brands</th><th>Audit Freq.</th>
+      </tr></thead>
+      <tbody id="dir-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ AUDIT CALENDAR ══ -->
+<div class="tab-panel" id="tab-calendar">
+  <div class="drive-box">
+    <div class="drive-box-title">📅 13-Week Quarter Schedule</div>
+    <div class="drive-box-desc">
+      T1 stores audit <strong style="color:var(--t1)">bi-weekly</strong> · T2 stores audit <strong style="color:var(--t2)">monthly (every 4 weeks)</strong> · T3 stores audit <strong style="color:var(--t3)">once per quarter</strong>.
+      Stores are distributed across weeks to balance workload. Stores without a tier assigned are not scheduled — set tiers in Settings.
+      Click any week to see its store list.
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;"><div class="cal-dot" style="background:var(--t1);width:10px;height:10px;"></div> T1 Flagship (bi-weekly)</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;"><div class="cal-dot" style="background:var(--t2);width:10px;height:10px;"></div> T2 Standard (monthly)</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;"><div class="cal-dot" style="background:var(--t3);width:10px;height:10px;"></div> T3 Basic (quarterly)</div>
+    <div style="margin-left:auto;font-size:11px;color:var(--text-muted)"><span id="cal-q-name">Q1</span> Quarter starts: <strong style="color:var(--text)" id="cal-qstart-label">—</strong></div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div id="cal-week-detail"></div>
+</div>
+
+<!-- ══ THIS WEEK ══ -->
+<div class="tab-panel" id="tab-thisweek">
+  <div class="drive-box">
+    <div class="drive-box-title">📁 Google Drive Photo Submission Status</div>
+    <div class="drive-box-desc">
+      Track whether channel managers have uploaded their store photos this week. Mark stores as <strong style="color:var(--green)">Submitted</strong> when photos are received in Google Drive, or <strong style="color:var(--red)">Pending</strong> to follow up. Status resets automatically each week.
+      <br><br>
+      <span style="color:var(--amber)">Future: Connect a Google Apps Script to auto-detect Drive uploads — see ⚙ Settings for setup instructions.</span>
+    </div>
+  </div>
+  <div id="thisweek-content"></div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="tab-panel" id="tab-settings">
+  <div class="settings-section">
+    <div class="settings-title">Quarter Schedule</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">The active quarter is determined automatically based on today's date. No manual change needed when Q2 begins.</div>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;overflow:hidden;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="padding:7px 12px;background:#1a1a1a;color:var(--text-muted);text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;">Quarter</th>
+          <th style="padding:7px 12px;background:#1a1a1a;color:var(--text-muted);text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;">Start Date</th>
+          <th style="padding:7px 12px;background:#1a1a1a;color:var(--text-muted);text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;">End Date</th>
+          <th style="padding:7px 12px;background:#1a1a1a;color:var(--text-muted);text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
+        </tr></thead>
+        <tbody id="quarter-table"></tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);" id="settings-week-display"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">Stores Without Tier — Assign Tiers</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">These stores are not currently in the audit schedule. Assign a tier to include them.</div>
+    <div id="untiered-stores"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">Google Drive Auto-Status (Advanced)</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.8;margin-bottom:10px;">
+      To auto-detect when CMs upload photos to Google Drive, set up a Google Apps Script that:<br>
+      1. Scans a shared Drive folder for files uploaded in the past 7 days<br>
+      2. Matches file names to store codes<br>
+      3. Updates a Google Sheet with submission status<br>
+      4. This dashboard reads from that Sheet URL to show live status<br><br>
+      <span style="color:var(--amber)">This requires a shared Google Drive folder where CMs upload photos using the naming convention: <span style="font-family:monospace;color:var(--green)">[StoreCode]_[Section]_[YYYYMMDD]</span></span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Sheet Status URL</span>
+      <input class="setting-input" type="text" id="drive-sheet-url" placeholder="https://script.google.com/macros/s/..." style="flex:1;" onchange="saveSettings()">
+    </div>
+    <button class="btn btn-ghost" style="margin-top:6px;font-size:10px;" onclick="testDriveConnection()">Test Connection</button>
+  </div>
+</div>
+
+<!-- ══ SCORES TAB ══ -->
+<div class="tab-panel" id="tab-scores">
+
+  <!-- Connection banner -->
+  <div id="scores-connect-banner" class="drive-box" style="border-color:rgba(200,168,75,0.3);background:rgba(200,168,75,0.05);">
+    <div class="drive-box-title" style="color:var(--gold)">📊 Connect to Google Sheets to auto-load scores</div>
+    <div class="drive-box-desc">
+      Scores are pulled automatically from the Retail Distribution Audit Google Sheet. Paste your Web App URL below — this is the same URL used in the Audit Scorecard Setup tab. Once connected, all submitted audit scores appear here automatically.<br><br>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <input id="scores-sheet-url" class="setting-input" type="text" placeholder="https://script.google.com/macros/s/..." style="flex:1;min-width:280px;" oninput="saveScoreUrl()">
+        <button class="btn btn-gold" onclick="fetchScores()">Load Scores</button>
+        <button class="btn btn-ghost" onclick="hideConnectBanner()">I'll enter manually</button>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:6px;" id="scores-url-status"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="filter-bar" style="margin-bottom:16px;">
+    <select class="filter-select" id="scores-view" onchange="renderScores()">
+      <option value="cm">By Channel Manager</option>
+      <option value="country">By Country</option>
+      <option value="month">Monthly Summary</option>
+      <option value="week">Weekly Summary</option>
+    </select>
+    <select class="filter-select" id="scores-cm-filter" onchange="renderScores()">
+      <option value="">All CMs</option>
+    </select>
+    <select class="filter-select" id="scores-country-filter" onchange="renderScores()">
+      <option value="">All Countries</option>
+      <option>SG</option><option>MY</option><option>HK</option><option>TH</option>
+    </select>
+    <select class="filter-select" id="scores-brand-filter" onchange="renderScores()">
+      <option value="">All Brands</option>
+      <option>Sonos</option><option>Marshall</option><option>Bowers</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="fetchScores()" id="scores-refresh-btn" style="display:none">↻ Refresh</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportScoresSummary()">Export CSV</button>
+    <span class="filter-count" id="scores-last-updated"></span>
+  </div>
+
+  <!-- Main scores output -->
+  <div id="scores-output">
+    <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+      <div style="font-size:32px;margin-bottom:12px;">📈</div>
+      <div style="font-size:14px;margin-bottom:6px;">No score data yet</div>
+      <div style="font-size:12px;">Connect to Google Sheets above, or add scores manually using the + button below</div>
+    </div>
+  </div>
+
+  <!-- Manual entry -->
+  <div style="margin-top:16px;">
+    <button class="btn btn-ghost" onclick="toggleManualEntry()" style="font-size:11px;">+ Add score manually</button>
+    <div id="manual-entry-form" style="display:none;margin-top:12px;">
+      <div class="settings-section">
+        <div class="settings-title">Add Score Manually</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Store</div>
+            <input id="man-store" class="setting-input" type="text" placeholder="Store name" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Country</div>
+            <select id="man-country" class="setting-input" style="width:100%;cursor:pointer;">
+              <option value="SG">SG</option><option value="MY">MY</option>
+              <option value="HK">HK</option><option value="TH">TH</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Brand</div>
+            <select id="man-brand" class="setting-input" style="width:100%;cursor:pointer;">
+              <option>Sonos</option><option>Marshall</option><option>Bowers</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Channel Manager</div>
+            <input id="man-cm" class="setting-input" type="text" placeholder="CM name" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Audit Date</div>
+            <input id="man-date" class="setting-input" type="date" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Overall Score %</div>
+            <input id="man-score" class="setting-input" type="number" min="0" max="100" placeholder="e.g. 87" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Grade</div>
+            <select id="man-grade" class="setting-input" style="width:100%;cursor:pointer;">
+              <option>Gold</option><option>A</option><option>B</option>
+              <option>C</option><option>D</option><option>E</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Tier</div>
+            <select id="man-tier" class="setting-input" style="width:100%;cursor:pointer;">
+              <option value="T1 — Flagship">T1 — Flagship</option>
+              <option value="T2 — Standard">T2 — Standard</option>
+              <option value="T3 — Basic">T3 — Basic</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-gold" onclick="addManualScore()">Add Score</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STORE DATABASE
+// tier: 1=T1, 2=T2, 3=T3, null=unassigned
+// brands: array of 'Sonos','Marshall','Bowers'
+// ═══════════════════════════════════════════════════════════════════
+const ALL_STORES = [
+  // ── SINGAPORE ──────────────────────────────────────────────────
+  // Challenger (Zhi Yong)
+  ...[
+    'Great World City','Clementi Mall','Tiong Bahru','Parkway Parade','JEM','Bugis B1',
+    'Ang Mo Kio Hub','Causeway Point','Jurong Point','Northpoint','Tampines 1',
+    'Tampines Mall','Plaza Singapura','Vivocity','NEX','Bugis Junction','Lot One',
+    'IMM','ION','313','Paya Lebar HQ','Raffles City','Suntec City','Jewel',
+    'Pasir Ris Mall','Woodleigh Mall'
+  ].map(s => ({name:`Challenger @ ${s}`, country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:null, brands:['Sonos','Marshall','Bowers']})),
+
+  // Harvey Norman (Johnathan)
+  {name:'Harvey Norman @ Millenia Walk',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ Parkway Parade',  country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ West Gate',       country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ Viva',            country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ West Mall',       country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ Northpoint',      country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ Hougang Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Seletar Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Punggol Coast',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Lot One',         country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Jurong Point',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Bukit Panjang',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:null, brands:['Sonos']},
+
+  // Best Denki (Johnathan)
+  {name:'Best Denki @ Ngee Ann City',                   country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki @ Vivocity',                        country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki (Singapore) Pte Ltd @ Funan',       country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki @ Great World City',                country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Best Denki @ Plaza Singapura',                 country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Best Denki @ Junction 8',                      country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Best Denki @ IMM',                             country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
+
+  // Courts (Jerome)
+  {name:'Courts @ The Heeren',    country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
+  {name:'Courts @ Megastore',     country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
+  {name:'Courts @ NEX',           country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
+  {name:'Courts @ Jurong Point',  country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
+  {name:'Courts @ JEM',           country:'SG', retailer:'Courts', cm:'Jerome', tier:null, brands:['Sonos']},
+
+  // Jerome others
+  {name:'TK FOTO @ Funan',        country:'SG', retailer:'TK FOTO',    cm:'Jerome',    tier:null, brands:['Sonos']},
+  {name:'Connect IT @ Somerset',  country:'SG', retailer:'Connect IT', cm:'Jerome',    tier:null, brands:['Sonos']},
+
+  // Takashimaya (Goh Xinyi)
+  {name:'Takashimaya @ Ngee Ann City', country:'SG', retailer:'Takashimaya', cm:'Goh Xinyi', tier:null, brands:['Sonos','Bowers']},
+
+  // Sprint Cass (Sinclair)
+  ...[
+    {n:'Sprint Cass @ T1 E1'}, {n:'Sprint Cass @ T1 H1'}, {n:'Sprint Cass @ T2 E2'},
+    {n:'Sprint Cass @ T2 M2'}, {n:'Sprint Cass @ T3 E3'}, {n:'Sprint Cass @ T3 M3'}, {n:'Sprint Cass @ T4 E4'}
+  ].map(s => ({name:s.n, country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:null, brands:['Sonos']})),
+
+  // No CM
+  ...[
+    'Gain City @ Sungei Kadut Megastore','Gain City @ Marina Square',
+    'Chamber (Sports Fashion Pte Ltd)','AV Intelligence','Parisilk @ Holland Village',
+    'Commune Lifestyle Pte Ltd','Actually','Forty Two','Excel Hardware','Zepplin & Co'
+  ].map(s => ({name:s, country:'SG', retailer:s.split(' @')[0].split(' (')[0], cm:'—', tier:null, brands:['Sonos']})),
+
+  // ── MALAYSIA ───────────────────────────────────────────────────
+  // Harvey Norman — Adrian
+  {name:'Harvey Norman (MY) @ Ikano (IPC)',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Mid Valley',               country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Johor Paradigm Mall',      country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Johor Southkey',           country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Ipoh Parade',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ 1 Utama',                  country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ JB Toppen',                country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Suria Sabah',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion Damansara Heights',country:'MY',retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Bintulu',                  country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  // Harvey Norman — Jin Nong
+  {name:'Harvey Norman (MY) @ Sunway Pyramid',           country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion KL',              country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Queensbay Mall',           country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ IOI City Mall',            country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Vivacity Mall',            country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Miri Times Square',        country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Ikea Batu Kawan',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion Bukit Jalil',     country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Sunway Carnival',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Penang Sunshine',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Gurney Plaza',             country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  // TMT
+  {name:'TMT @ Mid Valley',         country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
+  {name:'TMT @ Sunway Pyramid',     country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
+  {name:'TMT @ JB Southkey',        country:'MY', retailer:'TMT', cm:'Adrian',   tier:2, brands:['Sonos','Bowers']},
+  // Flash Gadgets
+  {name:'Flash Gadgets @ The Gardens Mall', country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
+  {name:'Flash Gadgets @ IOI City Mall',    country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:2, brands:['Bowers']},
+  {name:'Flash Gadgets @ Mid Valley',       country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:null, brands:['Sonos','Bowers']},
+  {name:'Flash Gadgets @ Suria KLCC',       country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:null, brands:['Sonos','Bowers']},
+  // Urban Republic
+  {name:'Urban Republic @ Pavilion KL',    country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Queensbay Mall', country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Gurney Plaza',   country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Tebrau City',    country:'MY', retailer:'Urban Republic', cm:'Adrian',   tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Aeon Bukit Tinggi',country:'MY',retailer:'Urban Republic',cm:'Adrian',   tier:3, brands:['Sonos']},
+  // No CM
+  {name:'All IT @ One Utama',         country:'MY', retailer:'All IT',    cm:'—', tier:null, brands:['Sonos']},
+  {name:'PC Image @ Johor Southkey',  country:'MY', retailer:'PC Image',  cm:'—', tier:null, brands:['Sonos']},
+  {name:'PC Image @ Sibu Delta Mall', country:'MY', retailer:'PC Image',  cm:'—', tier:null, brands:['Sonos']},
+
+  // ── HONG KONG ──────────────────────────────────────────────────
+  // TechLife T1
+  ...[
+    'City Plaza','Melbourne Plaza','New Town Plaza','Ocean Centre',
+    'Telford Garden','Times Square','Ma On Shan','Tai Po'
+  ].map(s => ({name:`TechLife ${s}`, country:'HK', retailer:'TechLife', cm:'Ginger Kiang', tier:1, brands:['Sonos']})),
+  // TechLife T2
+  ...[
+    'Elements','YOHO'
+  ].map(s => ({name:`TechLife ${s}`, country:'HK', retailer:'TechLife', cm:'Ginger Kiang', tier:2, brands:['Sonos']})),
+  // TechLife T3
+  ...[
+    'APM','Diamond Hill','Festival Walk','Olympian City','PopCorn',
+    'The Wai','Tsing Yi','Tsuen Wan Plaza','Tuen Mun Town','Tung Chung','Whampoa'
+  ].map(s => ({name:`TechLife ${s}`, country:'HK', retailer:'TechLife', cm:'Ginger Kiang', tier:3, brands:['Sonos']})),
+  // AV Life T2
+  ...[
+    'K11','New Town Plaza','SOGO'
+  ].map(s => ({name:`AV Life ${s}`, country:'HK', retailer:'AV Life', cm:'Ginger Kiang', tier:2, brands:['Sonos']})),
+  // AV Life T3
+  ...[
+    'CityPlaza','East Point City','Lok Fu','Olympian City','Times Square',
+    'Tsuen Wan Plaza','Tuen Mun','Wong Chuk Hang'
+  ].map(s => ({name:`AV Life ${s}`, country:'HK', retailer:'AV Life', cm:'Ginger Kiang', tier:3, brands:['Sonos']})),
+  // Others HK
+  {name:'Cosmic Tech SSP',       country:'HK', retailer:'Cosmic Tech', cm:'Ginger Kiang', tier:3, brands:['Sonos']},
+  {name:'Fortress Golden Centre',country:'HK', retailer:'Fortress',    cm:'Ginger Kiang', tier:3, brands:['Sonos']},
+  {name:'Super King',            country:'HK', retailer:'Super King',  cm:'Ricky',        tier:null, brands:['Sonos']},
+  {name:'Super King CWB',        country:'HK', retailer:'Super King',  cm:'Ricky',        tier:null, brands:['Sonos']},
+  {name:'Radio Unison',          country:'HK', retailer:'Radio Unison',cm:'Ricky',        tier:null, brands:['Sonos']},
+
+  // ── THAILAND ───────────────────────────────────────────────────
+  // Powerbuy
+  ...[
+    'Central World','Central Chidlom','Central Phuket','Central Samui'
+  ].map(s => ({name:`Powerbuy @ ${s}`, country:'TH', retailer:'Powerbuy', cm:'Ning', tier:null, brands:['Sonos']})),
+  // Dotlife
+  ...[
+    'Central World','Paragon','Central Eastville','Central Rama 9','Promenade',
+    'Icon Siam','Mega Bangna','Central Westgate','Central Autthaya','Central Udonthani',
+    'Central Phuket','Central Chiangmai','Siam Paragon','Chiang Mai'
+  ].map(s => ({name:`Dotlife @ ${s}`, country:'TH', retailer:'Dotlife', cm:'Ning', tier:null, brands:['Sonos']})),
+  // Others TH
+  {name:'APP @ Paragon',              country:'TH', retailer:'APP',        cm:'Ning', tier:null, brands:['Sonos']},
+  {name:'iStudio @ Siam Paragon',     country:'TH', retailer:'iStudio',    cm:'Ning', tier:null, brands:['Sonos']},
+  {name:'Digital Lab @ Siam Discovery',country:'TH',retailer:'Digital Lab',cm:'Ning', tier:null, brands:['Sonos']},
+  {name:'Tech House @ One Bangkok',   country:'TH', retailer:'Tech House', cm:'Ning', tier:null, brands:['Sonos']},
+  {name:'LOFT @ Siam Paragon',        country:'TH', retailer:'LOFT',       cm:'Ning', tier:null, brands:['Sonos']},
+];
+
+// Add index IDs
+ALL_STORES.forEach((s, i) => s._id = i);
+
+// ─── SETTINGS ─────────────────────────────────────────────────────
+let settings = {
+  quarterStart: null,
+  driveSheetUrl: '',
+  tierOverrides: {}, // id -> tier
+  weekStatus: {}, // weekKey -> { storeId: 'submitted'|'pending' }
+};
+
+// Quarter definitions
+const QUARTERS = [
+  { name: 'Q1', start: '2025-12-29' },
+  { name: 'Q2', start: '2026-03-30' },
+];
+
+function getActiveQuarter() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  // Find the most recent quarter that has started
+  let active = QUARTERS[0];
+  for (const q of QUARTERS) {
+    const qStart = new Date(q.start);
+    if (today >= qStart) active = q;
+  }
+  return active;
+}
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tcNetworkSettings') || '{}');
+    settings = Object.assign(settings, s);
+  } catch(e) {}
+  // Always use the active quarter start unless manually overridden
+  if (!settings.manualQuarterStart) {
+    const aq = getActiveQuarter();
+    settings.quarterStart = aq.start;
+    settings.quarterName  = aq.name;
+  }
+}
+
+function saveSettings() {
+  const driveUrl = document.getElementById('drive-sheet-url');
+  if (driveUrl) settings.driveSheetUrl = driveUrl.value;
+  localStorage.setItem('tcNetworkSettings', JSON.stringify(settings));
+  renderAll();
+  showToast('Settings saved');
+}
+
+// ─── STORE HELPERS ────────────────────────────────────────────────
+function getStore(id) {
+  const s = ALL_STORES[id];
+  const tier = settings.tierOverrides[id] !== undefined ? settings.tierOverrides[id] : s.tier;
+  return {...s, tier};
+}
+
+function getAllStores() { return ALL_STORES.map((s,i) => getStore(i)); }
+
+function tierLabel(t) {
+  if (t === 1) return 'T1';
+  if (t === 2) return 'T2';
+  if (t === 3) return 'T3';
+  return '—';
+}
+
+function tierFreq(t) {
+  if (t === 1) return 'Bi-weekly';
+  if (t === 2) return 'Monthly';
+  if (t === 3) return 'Quarterly';
+  return 'Not scheduled';
+}
+
+function tierPillHtml(t) {
+  if (t === 1) return `<span class="tier-pill tier-1">T1 Flagship</span>`;
+  if (t === 2) return `<span class="tier-pill tier-2">T2 Standard</span>`;
+  if (t === 3) return `<span class="tier-pill tier-3">T3 Basic</span>`;
+  return `<span class="tier-pill tier-none">Not set</span>`;
+}
+
+function countryFlag(c) {
+  return {SG:'🇸🇬',MY:'🇲🇾',HK:'🇭🇰',TH:'🇹🇭'}[c] || '🏳️';
+}
+
+// ─── SCHEDULE ALGORITHM ───────────────────────────────────────────
+// T1: bi-weekly → audit slots: odd weeks only (1,3,5,7,9,11,13) and even (2,4,6,8,10,12)
+//     Split T1 stores into 2 groups (A: odd, B: even)
+// T2: monthly → slots: weeks 1,5,9,13 then 2,6,10 then 3,7,11 then 4,8,12 (4 groups)
+// T3: quarterly → split into 3 groups across weeks 3,7,11
+
+function getSchedule() {
+  const stores = getAllStores();
+  const schedule = {}; // week (1-13) -> [store ids]
+  for (let w = 1; w <= 13; w++) schedule[w] = [];
+
+  const t1 = stores.filter(s => s.tier === 1);
+  const t2 = stores.filter(s => s.tier === 2);
+  const t3 = stores.filter(s => s.tier === 3);
+
+  // T1: group A (odd weeks) and B (even weeks)
+  const t1OddWeeks  = [1,3,5,7,9,11,13];
+  const t1EvenWeeks = [2,4,6,8,10,12];
+  t1.forEach((s, i) => {
+    const group = i % 2; // 0=odd, 1=even
+    const weeks = group === 0 ? t1OddWeeks : t1EvenWeeks;
+    weeks.forEach(w => schedule[w].push(s._id));
+  });
+
+  // T2: 4 groups cycling through month slots
+  const t2Groups = [
+    [1,5,9,13], [2,6,10], [3,7,11], [4,8,12]
+  ];
+  t2.forEach((s, i) => {
+    const g = i % 4;
+    t2Groups[g].forEach(w => { if (w <= 13) schedule[w].push(s._id); });
+  });
+
+  // T3: 3 groups → weeks 4, 7, 11 (spread across quarter)
+  const t3Weeks = [4, 7, 11];
+  t3.forEach((s, i) => {
+    const w = t3Weeks[i % 3];
+    schedule[w].push(s._id);
+  });
+
+  return schedule;
+}
+
+function getCurrentQuarterWeek() {
+  if (!settings.quarterStart) return null;
+  const start = new Date(settings.quarterStart);
+  const today = new Date();
+  const diffMs = today - start;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const week = Math.floor(diffDays / 7) + 1;
+  if (week < 1 || week > 13) return null;
+  return week;
+}
+
+function getWeekDateRange(weekNum) {
+  if (!settings.quarterStart) return '';
+  const start = new Date(settings.quarterStart);
+  const weekStart = new Date(start);
+  weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const fmt = d => d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+  return `${fmt(weekStart)} – ${fmt(weekEnd)}`;
+}
+
+// ─── RENDER OVERVIEW ──────────────────────────────────────────────
+function renderOverview() {
+  const stores = getAllStores();
+  const total = stores.length;
+  const t1 = stores.filter(s => s.tier === 1).length;
+  const t2 = stores.filter(s => s.tier === 2).length;
+  const t3 = stores.filter(s => s.tier === 3).length;
+  const noTier = stores.filter(s => !s.tier).length;
+  const scheduled = t1 + t2 + t3;
+
+  document.getElementById('overview-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="color:var(--gold)">${total}</div><div class="stat-label">Total Stores</div><div class="stat-sub">Across 4 countries</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--t1)">${t1}</div><div class="stat-label">T1 Flagship</div><div class="stat-sub">Bi-weekly audits</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--t2)">${t2}</div><div class="stat-label">T2 Standard</div><div class="stat-sub">Monthly audits</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--t3)">${t3}</div><div class="stat-label">T3 Basic</div><div class="stat-sub">Quarterly audits</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${noTier}</div><div class="stat-label">Tier Not Set</div><div class="stat-sub">Not yet scheduled</div></div>
+  `;
+
+  const countries = [
+    {code:'SG', flag:'🇸🇬', name:'Singapore'},
+    {code:'MY', flag:'🇲🇾', name:'Malaysia'},
+    {code:'HK', flag:'🇭🇰', name:'Hong Kong'},
+    {code:'TH', flag:'🇹🇭', name:'Thailand'},
+  ];
+
+  const cms = [...new Set(stores.map(s => s.cm))].filter(c => c && c !== '—').sort();
+
+  let html = '';
+  countries.forEach(c => {
+    const cs = stores.filter(s => s.country === c.code);
+    const ct1 = cs.filter(s => s.tier===1).length;
+    const ct2 = cs.filter(s => s.tier===2).length;
+    const ct3 = cs.filter(s => s.tier===3).length;
+    const cnt = cs.filter(s => !s.tier).length;
+    const cCms = [...new Set(cs.map(s => s.cm))].filter(x => x && x !== '—');
+    const brands = [...new Set(cs.flatMap(s => s.brands))];
+
+    html += `
+    <div class="country-block">
+      <div class="country-header">
+        <span class="country-flag">${c.flag}</span>
+        <span class="country-name">${c.name}</span>
+        <div class="country-stats">
+          <span>${cs.length} stores</span>
+          <span style="color:var(--t1)">T1: ${ct1}</span>
+          <span style="color:var(--t2)">T2: ${ct2}</span>
+          <span style="color:var(--t3)">T3: ${ct3}</span>
+          ${cnt ? `<span style="color:var(--red)">Untiered: ${cnt}</span>` : ''}
+          <span style="color:var(--text-muted)">CMs: ${cCms.join(', ')}</span>
+          <span style="color:var(--text-muted)">${brands.join(' · ')}</span>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Retailer</th><th>Stores</th><th>T1</th><th>T2</th><th>T3</th><th>Untiered</th><th>CMs</th></tr></thead>
+        <tbody>`;
+
+    const retailers = [...new Set(cs.map(s => s.retailer))].sort();
+    retailers.forEach(r => {
+      const rs = cs.filter(s => s.retailer === r);
+      const rCms = [...new Set(rs.map(s => s.cm))].filter(x => x && x !== '—');
+      html += `<tr>
+        <td class="store-name">${r}</td>
+        <td>${rs.length}</td>
+        <td style="color:var(--t1);font-weight:600">${rs.filter(s=>s.tier===1).length||'—'}</td>
+        <td style="color:var(--t2);font-weight:600">${rs.filter(s=>s.tier===2).length||'—'}</td>
+        <td style="color:var(--t3);font-weight:600">${rs.filter(s=>s.tier===3).length||'—'}</td>
+        <td style="color:var(--red)">${rs.filter(s=>!s.tier).length||'—'}</td>
+        <td style="color:var(--text-muted)">${rCms.join(', ')||'—'}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+  });
+
+  // CM summary
+  html += `<div class="tbl-wrap" style="margin-top:16px;">
+    <div class="tbl-header"><span class="tbl-title">By Channel Manager</span></div>
+    <table><thead><tr><th>Channel Manager</th><th>Country</th><th>Total Stores</th><th>T1</th><th>T2</th><th>T3</th><th>Untiered</th><th>Retailers</th></tr></thead><tbody>`;
+
+  cms.forEach(cm => {
+    const cs = stores.filter(s => s.cm === cm);
+    const country = [...new Set(cs.map(s => s.country))].map(c => `${countryFlag(c)} ${c}`).join(', ');
+    const retailers = [...new Set(cs.map(s => s.retailer))].sort();
+    html += `<tr>
+      <td class="store-name" style="font-weight:600">${cm}</td>
+      <td>${country}</td>
+      <td style="font-weight:700;color:var(--text)">${cs.length}</td>
+      <td style="color:var(--t1)">${cs.filter(s=>s.tier===1).length||'—'}</td>
+      <td style="color:var(--t2)">${cs.filter(s=>s.tier===2).length||'—'}</td>
+      <td style="color:var(--t3)">${cs.filter(s=>s.tier===3).length||'—'}</td>
+      <td style="color:var(--red)">${cs.filter(s=>!s.tier).length||'—'}</td>
+      <td style="color:var(--text-muted);font-size:10px">${retailers.join(', ')}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  document.getElementById('overview-countries').innerHTML = html;
+}
+
+// ─── RENDER DIRECTORY ─────────────────────────────────────────────
+function renderDirectory() {
+  const stores = getAllStores();
+  const q = document.getElementById('dir-search').value.toLowerCase();
+  const country = document.getElementById('dir-country').value;
+  const tier = document.getElementById('dir-tier').value;
+  const cm = document.getElementById('dir-cm').value;
+  const brand = document.getElementById('dir-brand').value;
+
+  // Populate CM filter
+  const cmSel = document.getElementById('dir-cm');
+  if (cmSel.options.length <= 1) {
+    const cms = [...new Set(stores.map(s=>s.cm))].filter(c=>c&&c!=='—').sort();
+    cms.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; cmSel.appendChild(o); });
+  }
+
+  let filtered = stores.filter(s => {
+    if (q && !s.name.toLowerCase().includes(q) && !s.retailer.toLowerCase().includes(q)) return false;
+    if (country && s.country !== country) return false;
+    if (tier === 'null' && s.tier !== null) return false;
+    if (tier && tier !== 'null' && s.tier !== parseInt(tier)) return false;
+    if (cm && s.cm !== cm) return false;
+    if (brand && !s.brands.includes(brand)) return false;
+    return true;
+  });
+
+  document.getElementById('dir-count').textContent = `${filtered.length} stores`;
+
+  const tbody = document.getElementById('dir-tbody');
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No stores match your filters</td></tr>`; return; }
+
+  tbody.innerHTML = filtered.map((s, i) => `
+    <tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td>${countryFlag(s.country)} ${s.country}</td>
+      <td class="store-name">${s.name}</td>
+      <td style="color:var(--text-muted)">${s.retailer}</td>
+      <td>${tierPillHtml(s.tier)}</td>
+      <td style="color:var(--text-dim)">${s.cm}</td>
+      <td style="font-size:10px;color:var(--text-muted)">${s.brands.join(', ')}</td>
+      <td style="font-size:10px;color:${s.tier?'var(--text-dim)':'var(--red)'}">${tierFreq(s.tier)}</td>
+    </tr>`).join('');
+}
+
+// ─── RENDER CALENDAR ──────────────────────────────────────────────
+let selectedCalWeek = null;
+
+function renderCalendar() {
+  const schedule = getSchedule();
+  const currentWeek = getCurrentQuarterWeek();
+  selectedCalWeek = selectedCalWeek || currentWeek || 1;
+
+  document.getElementById('cal-qstart-label').textContent = settings.quarterStart
+    ? new Date(settings.quarterStart).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+    : 'Not set — go to ⚙ Settings';
+  const qNameEl = document.getElementById('cal-q-name');
+  if (qNameEl) qNameEl.textContent = settings.quarterName || 'Q1';
+
+  let calHtml = '';
+  for (let w = 1; w <= 13; w++) {
+    const stores = schedule[w].map(id => getStore(id));
+    const t1 = stores.filter(s=>s.tier===1).length;
+    const t2 = stores.filter(s=>s.tier===2).length;
+    const t3 = stores.filter(s=>s.tier===3).length;
+    const isCurrent = w === currentWeek;
+    const isSelected = w === selectedCalWeek;
+    const dateRange = getWeekDateRange(w);
+
+    calHtml += `
+    <div class="cal-week ${isCurrent?'current-week':''} ${isSelected?'active':''}" onclick="selectCalWeek(${w})">
+      <div class="cal-week-num" style="${isCurrent?'color:var(--green)':''}">${isCurrent?'W'+w+' ★':'W'+w}</div>
+      <div class="cal-week-count">${stores.length} stores</div>
+      <div class="cal-week-dots">
+        ${Array(Math.min(t1,5)).fill(`<div class="cal-dot" style="background:var(--t1)"></div>`).join('')}
+        ${Array(Math.min(t2,5)).fill(`<div class="cal-dot" style="background:var(--t2)"></div>`).join('')}
+        ${Array(Math.min(t3,3)).fill(`<div class="cal-dot" style="background:var(--t3)"></div>`).join('')}
+      </div>
+      <div style="font-size:8px;color:var(--text-muted);margin-top:3px;">${dateRange}</div>
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = calHtml;
+  renderCalWeekDetail(selectedCalWeek, schedule);
+}
+
+function selectCalWeek(w) {
+  selectedCalWeek = w;
+  renderCalendar();
+}
+
+function renderCalWeekDetail(w, schedule) {
+  const storeIds = schedule[w] || [];
+  const stores = storeIds.map(id => getStore(id));
+  const dateRange = getWeekDateRange(w);
+  const currentWeek = getCurrentQuarterWeek();
+  const isCurrent = w === currentWeek;
+
+  if (!stores.length) {
+    document.getElementById('cal-week-detail').innerHTML = `
+      <div class="week-section"><div class="week-section-title">Week ${w} — No scheduled audits</div>
+      <div style="font-size:12px;color:var(--text-muted);">No stores are scheduled this week. Assign tiers to stores in ⚙ Settings to populate the schedule.</div></div>`;
+    return;
+  }
+
+  // Group by country then CM
+  const byCountry = {};
+  stores.forEach(s => {
+    if (!byCountry[s.country]) byCountry[s.country] = {};
+    if (!byCountry[s.country][s.cm]) byCountry[s.country][s.cm] = [];
+    byCountry[s.country][s.cm].push(s);
+  });
+
+  let html = `<div class="week-section">
+    <div class="week-section-title" style="color:${isCurrent?'var(--green)':'var(--text-dim)'}">
+      Week ${w} ${isCurrent?'· ★ Current Week':''} <span style="font-weight:400;font-size:10px;color:var(--text-muted)">${dateRange}</span>
+      <span style="margin-left:auto;font-size:10px;font-weight:400;text-transform:none;">
+        <span style="color:var(--t1)">${stores.filter(s=>s.tier===1).length} T1</span> ·
+        <span style="color:var(--t2)">${stores.filter(s=>s.tier===2).length} T2</span> ·
+        <span style="color:var(--t3)">${stores.filter(s=>s.tier===3).length} T3</span> ·
+        <strong style="color:var(--text)">${stores.length} total</strong>
+      </span>
+    </div>`;
+
+  Object.entries(byCountry).sort().forEach(([country, byCm]) => {
+    html += `<div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">${countryFlag(country)} ${country}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Store</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Tier</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">CM</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Brands</th>
+        </tr></thead><tbody>`;
+
+    Object.entries(byCm).sort().forEach(([cm, cmStores]) => {
+      cmStores.forEach(s => {
+        html += `<tr>
+          <td style="padding:7px 10px;border-bottom:1px solid #141414;color:var(--text)">${s.name}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #141414;">${tierPillHtml(s.tier)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #141414;color:var(--text-muted)">${cm}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #141414;font-size:10px;color:var(--text-muted)">${s.brands.join(', ')}</td>
+        </tr>`;
+      });
+    });
+    html += '</tbody></table></div>';
+  });
+
+  html += '</div>';
+  document.getElementById('cal-week-detail').innerHTML = html;
+}
+
+// ─── RENDER THIS WEEK ─────────────────────────────────────────────
+function getWeekStatusKey(w) {
+  if (!settings.quarterStart) return null;
+  return `week-${settings.quarterStart}-${w}`;
+}
+
+function getWeekStatus(storeId, weekNum) {
+  const key = getWeekStatusKey(weekNum);
+  if (!key) return 'notdue';
+  return (settings.weekStatus[key] || {})[storeId] || 'pending';
+}
+
+function setWeekStatus(storeId, weekNum, status) {
+  const key = getWeekStatusKey(weekNum);
+  if (!key) return;
+  if (!settings.weekStatus[key]) settings.weekStatus[key] = {};
+  settings.weekStatus[key][storeId] = status;
+  localStorage.setItem('tcNetworkSettings', JSON.stringify(settings));
+  renderThisWeek();
+}
+
+function renderThisWeek() {
+  const currentWeek = getCurrentQuarterWeek();
+  const schedule = getSchedule();
+  const container = document.getElementById('thisweek-content');
+
+  if (!currentWeek) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);">
+      <div style="font-size:32px;margin-bottom:12px;">📅</div>
+      <div style="font-size:14px;margin-bottom:6px;">Quarter start date not set</div>
+      <div style="font-size:12px;">Go to ⚙ Settings to set your quarter start date</div>
+    </div>`;
+    return;
+  }
+
+  const storeIds = schedule[currentWeek] || [];
+  const stores = storeIds.map(id => getStore(id));
+  const dateRange = getWeekDateRange(currentWeek);
+
+  const submitted = stores.filter(s => getWeekStatus(s._id, currentWeek) === 'submitted');
+  const pending = stores.filter(s => getWeekStatus(s._id, currentWeek) === 'pending');
+
+  let html = `
+  <!-- Progress summary -->
+  <div class="week-section" style="border-left:3px solid var(--gold)">
+    <div class="week-section-title">Week ${currentWeek} — ${dateRange}</div>
+    <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
+      <div><span style="font-size:28px;font-weight:800;color:var(--gold)">${stores.length}</span><div style="font-size:10px;color:var(--text-muted)">Stores due this week</div></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--green)">${submitted.length}</span><div style="font-size:10px;color:var(--text-muted)">Photos received</div></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--red)">${pending.length}</span><div style="font-size:10px;color:var(--text-muted)">Still pending</div></div>
+    </div>
+    <div class="progress-track" style="height:10px;border-radius:5px;margin-bottom:4px;">
+      <div class="progress-fill" style="width:${stores.length?Math.round(submitted.length/stores.length*100):0}%;background:var(--green);height:100%;border-radius:5px;"></div>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${stores.length?Math.round(submitted.length/stores.length*100):0}% received</div>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="btn btn-sm btn-ghost" onclick="markAll(${currentWeek},'submitted')">Mark all as Submitted</button>
+      <button class="btn btn-sm btn-ghost" onclick="markAll(${currentWeek},'pending')">Reset all to Pending</button>
+    </div>
+  </div>`;
+
+  // Group by CM
+  const byCm = {};
+  stores.forEach(s => {
+    const cm = s.cm || '—';
+    if (!byCm[cm]) byCm[cm] = [];
+    byCm[cm].push(s);
+  });
+
+  Object.entries(byCm).sort().forEach(([cm, cmStores]) => {
+    const cmSubmitted = cmStores.filter(s => getWeekStatus(s._id, currentWeek) === 'submitted').length;
+    const cmPending = cmStores.filter(s => getWeekStatus(s._id, currentWeek) === 'pending').length;
+    const allDone = cmSubmitted === cmStores.length;
+
+    html += `<div class="week-section" style="border-left:3px solid ${allDone?'var(--green)':'var(--red)'}">
+      <div class="week-section-title">
+        ${cm}
+        <span style="font-size:10px;font-weight:400;color:${allDone?'var(--green)':'var(--text-muted)'}">
+          ${cmSubmitted}/${cmStores.length} submitted
+        </span>
+        ${allDone?'<span style="font-size:10px;color:var(--green)">✓ All photos received</span>':'<span style="font-size:10px;color:var(--red)">⚠ Chase for photos</span>'}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;width:50%">Store</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Tier</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Country</th>
+          <th style="padding:5px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:center;">Photo Status</th>
+        </tr></thead><tbody>`;
+
+    cmStores.sort((a,b) => (a.tier||99)-(b.tier||99)).forEach(s => {
+      const status = getWeekStatus(s._id, currentWeek);
+      const isSubmitted = status === 'submitted';
+      html += `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #141414;color:var(--text)">${s.name}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #141414;">${tierPillHtml(s.tier)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #141414;color:var(--text-muted)">${countryFlag(s.country)} ${s.country}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #141414;text-align:center;">
+          <button class="btn btn-sm ${isSubmitted?'btn-green':'btn-red'}" onclick="toggleStatus(${s._id},${currentWeek})">
+            ${isSubmitted?'✓ Submitted':'⏳ Pending'}
+          </button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function toggleStatus(storeId, weekNum) {
+  const current = getWeekStatus(storeId, weekNum);
+  setWeekStatus(storeId, weekNum, current === 'submitted' ? 'pending' : 'submitted');
+}
+
+function markAll(weekNum, status) {
+  const schedule = getSchedule();
+  const storeIds = schedule[weekNum] || [];
+  storeIds.forEach(id => setWeekStatus(id, weekNum, status));
+}
+
+// ─── RENDER SETTINGS ──────────────────────────────────────────────
+function renderSettings() {
+  // Remove old qstart-input reference if present
+  const currentWeek = getCurrentQuarterWeek();
+  const activeQ = getActiveQuarter();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Quarter table
+  const qtbody = document.getElementById('quarter-table');
+  if (qtbody) {
+    qtbody.innerHTML = QUARTERS.map(q => {
+      const start = new Date(q.start);
+      const end = new Date(start); end.setDate(start.getDate() + 13*7 - 1);
+      const isActive = q.name === activeQ.name;
+      const isFuture = today < start;
+      const isPast = today > end;
+      const fmt = d => d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      const statusHtml = isActive
+        ? `<span style="color:var(--green);font-weight:600">● Active${currentWeek ? ` — Week ${currentWeek} of 13` : ''}</span>`
+        : isFuture
+          ? `<span style="color:var(--amber)">Upcoming — starts in ${Math.ceil((start-today)/(1000*60*60*24))} days</span>`
+          : `<span style="color:var(--text-muted)">Completed</span>`;
+      return `<tr style="${isActive?'background:rgba(106,170,98,0.05)':''}">
+        <td style="padding:8px 12px;border-bottom:1px solid #141414;font-weight:700;color:${isActive?'var(--green)':'var(--text-dim)'}">${q.name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #141414;color:var(--text-dim)">${fmt(start)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #141414;color:var(--text-dim)">${fmt(end)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #141414;">${statusHtml}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const weekDisp = document.getElementById('settings-week-display');
+  if (weekDisp) weekDisp.textContent = currentWeek
+    ? `Currently in ${activeQ.name} Week ${currentWeek} of 13 · ${getWeekDateRange(currentWeek)}`
+    : 'No active quarter right now';
+
+  const stores = getAllStores().filter(s => !s.tier);
+  const container = document.getElementById('untiered-stores');
+  if (!stores.length) { container.innerHTML = `<div style="font-size:12px;color:var(--green)">✓ All stores have tiers assigned.</div>`; return; }
+
+  container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <thead><tr>
+      <th style="padding:6px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;">Store</th>
+      <th style="padding:6px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);">Country</th>
+      <th style="padding:6px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);">CM</th>
+      <th style="padding:6px 10px;background:var(--surface2);color:var(--text-muted);font-size:9px;text-transform:uppercase;border-bottom:1px solid var(--border);">Assign Tier</th>
+    </tr></thead><tbody>
+    ${stores.map(s => `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #141414;color:var(--text)">${s.name}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #141414;text-align:center;">${countryFlag(s.country)} ${s.country}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #141414;color:var(--text-muted)">${s.cm}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #141414;">
+        <select onchange="assignTier(${s._id},this.value)" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:3px 8px;border-radius:4px;font-family:inherit;cursor:pointer;">
+          <option value="">— Select —</option>
+          <option value="1">T1 — Flagship (bi-weekly)</option>
+          <option value="2">T2 — Standard (monthly)</option>
+          <option value="3">T3 — Basic (quarterly)</option>
+        </select>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function assignTier(storeId, tier) {
+  if (!tier) { delete settings.tierOverrides[storeId]; }
+  else { settings.tierOverrides[storeId] = parseInt(tier); }
+  localStorage.setItem('tcNetworkSettings', JSON.stringify(settings));
+  renderSettings();
+  showToast('Tier assigned — schedule updated');
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function testDriveConnection() {
+  const url = document.getElementById('drive-sheet-url').value.trim();
+  if (!url) { showToast('Enter a URL first'); return; }
+  fetch(url).then(() => showToast('✓ Connection successful'))
+    .catch(() => showToast('Connection failed — check the URL'));
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'overview')   renderOverview();
+  if (id === 'directory')  renderDirectory();
+  if (id === 'calendar')   renderCalendar();
+  if (id === 'thisweek')   renderThisWeek();
+  if (id === 'settings')   renderSettings();
+  if (id === 'scores') {
+    loadScoresData();
+    const savedUrl = localStorage.getItem('tcScoresSheetUrl');
+    if (savedUrl) {
+      document.getElementById('scores-sheet-url').value = savedUrl;
+      document.getElementById('scores-connect-banner').style.display = 'none';
+      document.getElementById('scores-refresh-btn').style.display = 'inline-block';
+    }
+    renderScores();
+  }
+}
+
+function renderAll() {
+  // Update week badge
+  const currentWeek = getCurrentQuarterWeek();
+  const badge = document.getElementById('current-week-badge');
+  if (currentWeek) {
+    badge.textContent = `${settings.quarterName||'Q1'} · Week ${currentWeek} of 13`;
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = 'rgba(106,170,98,0.3)';
+    badge.style.background = 'rgba(106,170,98,0.08)';
+  } else {
+    badge.textContent = 'Quarter date not set';
+    badge.style.color = 'var(--text-muted)';
+  }
+  renderOverview();
+}
+
+// ─── SCORES DATA & HELPERS ────────────────────────────────────────
+let scoresData = []; // array of audit records
+
+function loadScoresData() {
+  try { scoresData = JSON.parse(localStorage.getItem('tcScoresData') || '[]'); } catch(e) { scoresData = []; }
+  // Also load from audit scorecard local history if available
+  try {
+    const auditHistory = JSON.parse(localStorage.getItem('retailAuditHistory') || '[]');
+    if (auditHistory.length) {
+      const existingKeys = new Set(scoresData.map(r => r._key));
+      auditHistory.forEach(r => {
+        const key = `${r.store}|${r.date}|${r.brand}`;
+        if (!existingKeys.has(key)) {
+          scoresData.push({
+            _key: key, _source: 'scorecard',
+            store: r.store, country: r.countryLabel || r.country,
+            brand: r.brand, tier: r.tier, cm: r.cm,
+            date: r.date, overall: r.overall, grade: r.grade,
+            scoreA: r.scoreA, scoreB: r.scoreB, scoreC: r.scoreC,
+            scoreD: r.scoreD, scoreE: r.scoreE, scoreF: r.scoreF,
+          });
+        }
+      });
+    }
+  } catch(e) {}
+}
+
+function saveScoresData() {
+  localStorage.setItem('tcScoresData', JSON.stringify(scoresData));
+}
+
+function saveScoreUrl() {
+  const url = document.getElementById('scores-sheet-url').value.trim();
+  localStorage.setItem('tcScoresSheetUrl', url);
+}
+
+function hideConnectBanner() {
+  document.getElementById('scores-connect-banner').style.display = 'none';
+}
+
+async function fetchScores() {
+  const url = localStorage.getItem('tcScoresSheetUrl') ||
+              document.getElementById('scores-sheet-url')?.value?.trim();
+  if (!url) { showToast('Enter your Google Sheets Web App URL first'); return; }
+
+  const statusEl = document.getElementById('scores-url-status');
+  if (statusEl) statusEl.textContent = 'Fetching...';
+
+  try {
+    const resp = await fetch(url + '?action=getScores');
+    const data = await resp.json();
+    if (!Array.isArray(data)) throw new Error('Invalid response');
+    // Merge with existing, deduping by store+date+brand
+    const existingKeys = new Set(scoresData.filter(r=>r._source==='sheets').map(r=>r._key));
+    data.forEach(r => {
+      const key = `${r.store}|${r.date}|${r.brand}`;
+      if (!existingKeys.has(key)) {
+        scoresData.push({...r, _key: key, _source: 'sheets'});
+        existingKeys.add(key);
+      }
+    });
+    saveScoresData();
+    document.getElementById('scores-last-updated').textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
+    if (statusEl) statusEl.textContent = `✓ ${data.length} records loaded`;
+    document.getElementById('scores-refresh-btn').style.display = 'inline-block';
+    renderScores();
+    showToast(`✓ ${data.length} audit records loaded`);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Could not fetch — check URL or see Apps Script update below';
+    showToast('Could not fetch scores — make sure you updated the Apps Script');
+  }
+}
+
+function addManualScore() {
+  const store   = document.getElementById('man-store').value.trim();
+  const score   = parseInt(document.getElementById('man-score').value);
+  const date    = document.getElementById('man-date').value;
+  if (!store || !date || isNaN(score)) { showToast('Fill in store, date and score'); return; }
+  const brand   = document.getElementById('man-brand').value;
+  const key = `${store}|${date}|${brand}`;
+  scoresData.push({
+    _key: key, _source: 'manual',
+    store, country: document.getElementById('man-country').value,
+    brand, tier: document.getElementById('man-tier').value,
+    cm: document.getElementById('man-cm').value,
+    date, overall: score,
+    grade: document.getElementById('man-grade').value,
+  });
+  saveScoresData();
+  renderScores();
+  document.getElementById('manual-entry-form').style.display = 'none';
+  showToast('Score added');
+}
+
+function toggleManualEntry() {
+  const form = document.getElementById('manual-entry-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') {
+    document.getElementById('man-date').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+// ─── GRADE HELPERS ────────────────────────────────────────────────
+function gradeColor(g) {
+  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)'}[g]||'var(--text-muted)';
+}
+function scoreColor(s) {
+  if (!s && s!==0) return 'var(--text-muted)';
+  if (s>=90) return 'var(--gold)'; if (s>=80) return 'var(--blue)';
+  if (s>=70) return 'var(--green)'; if (s>=60) return 'var(--amber)';
+  return 'var(--red)';
+}
+function gradePill(g, score) {
+  if (!g && !score && score!==0) return '<span style="color:var(--text-muted);font-size:10px;">—</span>';
+  const c = gradeColor(g);
+  return `<span style="font-weight:700;color:${c}">${score??'—'}% <span style="font-size:10px;background:${c}18;border:1px solid ${c}44;border-radius:3px;padding:1px 5px;">${g||'?'}</span></span>`;
+}
+
+// ─── RENDER SCORES ────────────────────────────────────────────────
+function renderScores() {
+  loadScoresData();
+  const view       = document.getElementById('scores-view').value;
+  const cmFilter   = document.getElementById('scores-cm-filter').value;
+  const ctryFilter = document.getElementById('scores-country-filter').value;
+  const brandFilter= document.getElementById('scores-brand-filter').value;
+
+  // Populate CM filter
+  const cmSel = document.getElementById('scores-cm-filter');
+  if (cmSel.options.length <= 1) {
+    const cms = [...new Set(scoresData.map(r=>r.cm))].filter(Boolean).sort();
+    cms.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; cmSel.appendChild(o); });
+  }
+
+  let data = scoresData.filter(r => {
+    if (cmFilter && r.cm !== cmFilter) return false;
+    if (ctryFilter && r.country !== ctryFilter && !r.country?.includes(ctryFilter)) return false;
+    if (brandFilter && r.brand !== brandFilter) return false;
+    return true;
+  });
+
+  const out = document.getElementById('scores-output');
+  if (!data.length) {
+    out.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px;">No score data matches your filters.<br>Connect to Google Sheets or add scores manually.</div>`;
+    return;
+  }
+
+  if (view === 'cm') renderScoresByCM(data, out);
+  else if (view === 'country') renderScoresByCountry(data, out);
+  else if (view === 'month') renderScoresByMonth(data, out);
+  else if (view === 'week') renderScoresByWeek(data, out);
+
+  document.getElementById('scores-last-updated').textContent = `${data.length} records`;
+}
+
+function renderScoresByCM(data, out) {
+  const cms = [...new Set(data.map(r=>r.cm))].filter(Boolean).sort();
+  let html = '';
+
+  cms.forEach(cm => {
+    const cmData = data.filter(r=>r.cm===cm);
+    // Get latest score per store
+    const byStore = {};
+    cmData.forEach(r => {
+      if (!byStore[r.store] || r.date > byStore[r.store].date) byStore[r.store] = r;
+    });
+    const latest = Object.values(byStore);
+    const avg = latest.length ? Math.round(latest.reduce((a,b)=>a+(b.overall||0),0)/latest.length) : null;
+    const gold = latest.filter(r=>r.grade==='Gold').length;
+    const country = [...new Set(cmData.map(r=>r.country))].map(c=>countryFlag(c)+' '+c).join(', ');
+
+    // All audits sorted by date desc for the history columns
+    const allByStore = {};
+    cmData.sort((a,b)=>b.date.localeCompare(a.date)).forEach(r => {
+      if (!allByStore[r.store]) allByStore[r.store] = [];
+      allByStore[r.store].push(r);
+    });
+
+    // Get up to 4 most recent audit dates across all stores
+    const allDates = [...new Set(cmData.map(r=>r.date))].sort((a,b)=>b.localeCompare(a)).slice(0,4);
+
+    html += `
+    <div class="tbl-wrap" style="margin-bottom:16px;">
+      <div class="tbl-header">
+        <div>
+          <span class="tbl-title" style="font-size:13px;color:var(--text)">${cm}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:8px;">${country}</span>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;">
+          <span style="font-size:11px;color:var(--text-muted)">${latest.length} stores audited</span>
+          <span style="font-size:14px;font-weight:800;color:${scoreColor(avg)}">${avg??'—'}%</span>
+          <span style="font-size:10px;color:var(--gold)">${gold} Gold</span>
+          <button class="btn btn-gold btn-sm" onclick="sendTelegramReport('${cm}')" style="font-size:10px;">📱 Send Report</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Store</th><th>Tier</th><th>Brand</th>
+          ${allDates.map(d=>`<th style="text-align:center">${formatDateShort(d)}</th>`).join('')}
+          <th style="text-align:center">Latest</th>
+          <th style="text-align:center">Trend</th>
+        </tr></thead>
+        <tbody>
+        ${Object.entries(allByStore).map(([store, audits]) => {
+          const dateScores = allDates.map(d => {
+            const a = audits.find(r=>r.date===d);
+            return a ? `<td style="text-align:center">${gradePill(a.grade,a.overall)}</td>` : '<td style="text-align:center;color:var(--text-muted)">—</td>';
+          }).join('');
+          const latest2 = audits[0];
+          const prev = audits[1];
+          let trend = '—';
+          if (latest2?.overall && prev?.overall) {
+            const diff = latest2.overall - prev.overall;
+            trend = diff > 0 ? `<span style="color:var(--green)">▲ +${diff}%</span>`
+                  : diff < 0 ? `<span style="color:var(--red)">▼ ${diff}%</span>`
+                  : `<span style="color:var(--text-muted)">→ —</span>`;
+          }
+          return `<tr>
+            <td class="store-name">${store}</td>
+            <td>${tierPillHtml(parseTier(latest2?.tier))}</td>
+            <td style="font-size:10px;color:var(--text-muted)">${latest2?.brand||'—'}</td>
+            ${dateScores}
+            <td style="text-align:center">${gradePill(latest2?.grade, latest2?.overall)}</td>
+            <td style="text-align:center;font-size:11px">${trend}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+  out.innerHTML = html;
+}
+
+function renderScoresByCountry(data, out) {
+  const countries = [...new Set(data.map(r=>r.country))].filter(Boolean).sort();
+  let html = '';
+  countries.forEach(c => {
+    const cd = data.filter(r=>r.country===c);
+    const byStore = {};
+    cd.forEach(r => { if (!byStore[r.store]||r.date>byStore[r.store].date) byStore[r.store]=r; });
+    const latest = Object.values(byStore);
+    const avg = latest.length ? Math.round(latest.reduce((a,b)=>a+(b.overall||0),0)/latest.length) : null;
+    html += `
+    <div class="tbl-wrap" style="margin-bottom:12px;">
+      <div class="tbl-header">
+        <span class="tbl-title">${countryFlag(c)} ${c}</span>
+        <div style="display:flex;gap:16px;">
+          <span style="font-size:11px;color:var(--text-muted)">${latest.length} stores</span>
+          <span style="font-size:14px;font-weight:800;color:${scoreColor(avg)}">${avg??'—'}% avg</span>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Store</th><th>CM</th><th>Brand</th><th>Tier</th><th style="text-align:center">Latest Score</th><th style="text-align:center">Date</th></tr></thead>
+        <tbody>${latest.sort((a,b)=>(b.overall||0)-(a.overall||0)).map(r=>`
+          <tr>
+            <td class="store-name">${r.store}</td>
+            <td style="color:var(--text-muted)">${r.cm||'—'}</td>
+            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td>${tierPillHtml(parseTier(r.tier))}</td>
+            <td style="text-align:center">${gradePill(r.grade,r.overall)}</td>
+            <td style="text-align:center;font-size:10px;color:var(--text-muted)">${formatDateShort(r.date)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+  out.innerHTML = html;
+}
+
+function renderScoresByMonth(data, out) {
+  const byMonth = {};
+  data.forEach(r => {
+    const m = r.date ? r.date.substring(0,7) : 'Unknown';
+    if (!byMonth[m]) byMonth[m] = [];
+    byMonth[m].push(r);
+  });
+  const months = Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
+  let html = '';
+  months.forEach(m => {
+    const md = byMonth[m];
+    const avg = md.length ? Math.round(md.reduce((a,r)=>a+(r.overall||0),0)/md.length) : null;
+    const gold = md.filter(r=>r.grade==='Gold').length;
+    const mLabel = new Date(m+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    html += `
+    <div class="tbl-wrap" style="margin-bottom:12px;">
+      <div class="tbl-header">
+        <span class="tbl-title">${mLabel}</span>
+        <div style="display:flex;gap:16px;">
+          <span style="font-size:11px;color:var(--text-muted)">${md.length} audits</span>
+          <span style="font-size:14px;font-weight:800;color:${scoreColor(avg)}">${avg??'—'}% avg</span>
+          <span style="font-size:11px;color:var(--gold)">${gold} Gold</span>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Store</th><th>Country</th><th>Brand</th><th>CM</th><th style="text-align:center">Score</th><th style="text-align:center">Grade</th></tr></thead>
+        <tbody>${md.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`
+          <tr>
+            <td style="color:var(--text-muted);font-size:10px">${formatDateShort(r.date)}</td>
+            <td class="store-name">${r.store}</td>
+            <td>${countryFlag(r.country||'')} ${r.country||'—'}</td>
+            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td style="color:var(--text-muted)">${r.cm||'—'}</td>
+            <td style="text-align:center;font-weight:700;color:${scoreColor(r.overall)}">${r.overall??'—'}%</td>
+            <td style="text-align:center"><span style="font-weight:700;color:${gradeColor(r.grade)}">${r.grade||'—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+  out.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--text-muted);">No data</div>';
+}
+
+function renderScoresByWeek(data, out) {
+  // Group by quarter week
+  const byWeek = {};
+  data.forEach(r => {
+    if (!r.date || !settings.quarterStart) return;
+    const start = new Date(settings.quarterStart);
+    const d = new Date(r.date);
+    const diff = Math.floor((d - start) / (7*24*60*60*1000));
+    const w = diff + 1;
+    if (w >= 1 && w <= 13) {
+      if (!byWeek[w]) byWeek[w] = [];
+      byWeek[w].push(r);
+    } else {
+      if (!byWeek['other']) byWeek['other'] = [];
+      byWeek['other'].push(r);
+    }
+  });
+
+  let html = '';
+  const weeks = Object.keys(byWeek).filter(w=>w!=='other').sort((a,b)=>parseInt(b)-parseInt(a));
+  weeks.forEach(w => {
+    const wd = byWeek[w];
+    const avg = wd.length ? Math.round(wd.reduce((a,r)=>a+(r.overall||0),0)/wd.length) : null;
+    const dr = getWeekDateRange(parseInt(w));
+    const isCurrent = parseInt(w) === getCurrentQuarterWeek();
+    html += `
+    <div class="tbl-wrap" style="margin-bottom:12px;${isCurrent?'border-color:rgba(106,170,98,0.3)':''}">
+      <div class="tbl-header">
+        <div>
+          <span class="tbl-title">${settings.quarterName||'Q1'} Week ${w}</span>
+          ${isCurrent?'<span style="font-size:10px;color:var(--green);margin-left:6px;">● Current Week</span>':''}
+          <span style="font-size:10px;color:var(--text-muted);margin-left:8px;">${dr}</span>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <span style="font-size:11px;color:var(--text-muted)">${wd.length} audits</span>
+          <span style="font-size:14px;font-weight:800;color:${scoreColor(avg)}">${avg??'—'}% avg</span>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Store</th><th>Country</th><th>CM</th><th>Brand</th><th style="text-align:center">Score</th><th style="text-align:center">Grade</th></tr></thead>
+        <tbody>${wd.sort((a,b)=>(b.overall||0)-(a.overall||0)).map(r=>`
+          <tr>
+            <td class="store-name">${r.store}</td>
+            <td>${countryFlag(r.country||'')} ${r.country||'—'}</td>
+            <td style="color:var(--text-muted)">${r.cm||'—'}</td>
+            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td style="text-align:center;font-weight:700;color:${scoreColor(r.overall)}">${r.overall??'—'}%</td>
+            <td style="text-align:center"><span style="font-weight:700;color:${gradeColor(r.grade)}">${r.grade||'—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+  out.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--text-muted);">No scored audits found for the current quarter period.</div>';
+}
+
+function exportScoresSummary() {
+  if (!scoresData.length) { showToast('No score data to export'); return; }
+  const headers = ['Date','Store','Country','Brand','Tier','CM','Score%','Grade'];
+  const rows = scoresData.map(r=>[r.date,r.store,r.country,r.brand,r.tier,r.cm,r.overall,r.grade].join(','));
+  const csv = [headers.join(','),...rows].join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'audit_scores_'+new Date().toISOString().split('T')[0]+'.csv'; a.click();
+  showToast('Scores exported');
+}
+
+function parseTier(tierStr) {
+  if (!tierStr) return null;
+  if (tierStr === 1 || tierStr === 2 || tierStr === 3) return tierStr;
+  if (typeof tierStr === 'string') {
+    if (tierStr.includes('T1') || tierStr.includes('Flagship')) return 1;
+    if (tierStr.includes('T2') || tierStr.includes('Standard')) return 2;
+    if (tierStr.includes('T3') || tierStr.includes('Basic'))    return 3;
+  }
+  return null;
+}
+
+function formatDateShort(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+  catch(e) { return d; }
+}
+
+// ── TELEGRAM REPORT ───────────────────────────────────────────────
+async function sendTelegramReport(cmName) {
+  const url = localStorage.getItem('tcScoresSheetUrl');
+  if (!url) { showToast('Connect to Google Sheets in the Scores tab first'); return; }
+
+  const currentWeek = getCurrentQuarterWeek();
+  const weekLabel = currentWeek ? getWeekDateRange(currentWeek) : '';
+  const weekStr = (settings.quarterName||'Q') + ' Week ' + currentWeek + ' — ' + weekLabel;
+
+  showToast(`Sending report to ${cmName}...`, 4000);
+
+  try {
+    const resp = await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`);
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`✓ Report sent to ${cmName} on Telegram`);
+    } else {
+      if (data.error && data.error.includes('Chat ID')) {
+        showToast(`Add ${cmName}'s Telegram Chat ID in the CM Contacts sheet`, 4000);
+      } else {
+        showToast(`Could not send: ${data.error || 'Unknown error'}`);
+      }
+    }
+  } catch(e) {
+    showToast('Could not reach Google Sheets — check connection');
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+loadSettings();
+renderAll();
+</script>
+</body>
+</html>
