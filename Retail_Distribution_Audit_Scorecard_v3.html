@@ -115,6 +115,11 @@
 
   /* CRITERION ROW */
   .crit-row.cm-verified-row { background: rgba(122,168,184,0.04); border-left: 2px solid var(--blue); }
+  .crit-note { width:100%; background:var(--surface2); border:1px solid var(--border2); border-radius:4px; color:var(--text-dim); font-size:11px; padding:5px 9px; font-family:inherit; resize:none; margin-top:5px; display:none; }
+  .crit-note:focus { outline:none; border-color:var(--gold); color:var(--text); }
+  .crit-note.show { display:block; }
+  .note-toggle { background:none; border:none; color:var(--text-muted); font-size:10px; cursor:pointer; padding:2px 0; margin-top:3px; display:block; }
+  .note-toggle:hover { color:var(--gold); }
   .cm-verified-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(122,168,184,0.12); border:1px solid rgba(122,168,184,0.3); color:var(--blue); font-size:9px; font-weight:600; letter-spacing:0.3px; padding:2px 7px; border-radius:4px; margin-left:6px; }
   .cm-lock-note { font-size:10px; color:var(--blue); margin-top:3px; font-style:italic; opacity:0.8; }
   .crit-row:last-child { border-bottom: none; }
@@ -577,6 +582,8 @@ function doGet(e) {
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
 // tiers: null = all, ['t1'] = T1 only, ['t1','t2'] = T1/T2 only
+const critNotes = {}; // stores notes per criterion id
+
 const SECTIONS = {
   A: {
     label: "Assets & Condition",
@@ -1025,6 +1032,7 @@ function switchBrand() {
 function resetAudit() {
   if (!confirm("Reset all scores and photos? This cannot be undone.")) return;
   scores = {};
+  Object.keys(critNotes).forEach(k => delete critNotes[k]);
   resetPhotos();
   buildAll();
 }
@@ -1454,6 +1462,7 @@ function buildAuditRecord() {
     overall, grade,
     passed: totalPassed, total: totalItems,
     failedItems: failedItems.join(' | '),
+    critNotes: getAllCritNotes(),
     actions: actions.join(' | '),
   };
 }
@@ -1676,6 +1685,32 @@ function renderDashboard() {
         <div class="bar-val" style="color:var(--red)">${count}x</div>
       </div>`).join('');
   }
+}
+
+// ── CRITERION NOTES ──────────────────────────────────────────────
+function toggleCritNote(id) {
+  const note = document.getElementById('note-' + id);
+  if (!note) return;
+  note.classList.toggle('show');
+  if (note.classList.contains('show')) note.focus();
+}
+
+function saveCritNote(id, value) {
+  critNotes[id] = value;
+  // Update toggle label
+  const wrap = document.getElementById('note-wrap-' + id);
+  if (wrap) {
+    const btn = wrap.querySelector('.note-toggle');
+    if (btn) btn.textContent = value ? '💬 ' + value.substring(0,40) + (value.length > 40 ? '...' : '') : '+ Add comment';
+  }
+}
+
+function getAllCritNotes() {
+  // Returns only non-empty notes
+  return Object.entries(critNotes)
+    .filter(([k,v]) => v && v.trim())
+    .map(([k,v]) => k + ': ' + v.trim())
+    .join(' | ');
 }
 
 // ── PHOTO REVIEW & COMMENTS ──────────────────────────────────────
