@@ -1259,14 +1259,11 @@ async function fetchScores() {
     const resp = await fetch(url + '?action=getScores');
     const data = await resp.json();
     if (!Array.isArray(data)) throw new Error('Invalid response');
-    // Merge with existing, deduping by store+date+brand
-    const existingKeys = new Set(scoresData.filter(r=>r._source==='sheets').map(r=>r._key));
+    // Replace all sheets-sourced records with fresh data, keep manual/scorecard entries
+    scoresData = scoresData.filter(r => r._source !== 'sheets');
     data.forEach(r => {
       const key = `${r.store}|${r.date}|${r.brand}`;
-      if (!existingKeys.has(key)) {
-        scoresData.push({...r, _key: key, _source: 'sheets'});
-        existingKeys.add(key);
-      }
+      scoresData.push({...r, _key: key, _source: 'sheets'});
     });
     saveScoresData();
     document.getElementById('scores-last-updated').textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
