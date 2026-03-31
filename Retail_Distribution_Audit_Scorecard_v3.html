@@ -480,6 +480,10 @@
 </div>
 <!-- ══ DASHBOARD TAB ══ -->
 <div class="tab-panel" id="tab-dashboard">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <div style="font-size:10px;color:var(--text-muted)" id="sheets-sync-status">Showing local data only — click Sync to load all submitted audits</div>
+    <button class="btn btn-ghost" onclick="syncFromSheets()" style="font-size:10px;">🔄 Sync from Sheets</button>
+  </div>
   <div class="dash-grid" id="dash-stats">
     <div class="dash-card"><div class="dash-card-num" id="d-total" style="color:var(--gold)">0</div><div class="dash-card-label">Total Audits</div></div>
     <div class="dash-card"><div class="dash-card-num" id="d-avg" style="color:var(--blue)">—</div><div class="dash-card-label">Average Score</div></div>
@@ -1600,8 +1604,36 @@ function barColor(pct) {
   return 'var(--red)';
 }
 
+function syncFromSheets() {
+  const url = localStorage.getItem('sheetsUrl');
+  if (!url) { showToast('Paste your Apps Script URL in the Setup tab first'); return; }
+  const status = document.getElementById('sheets-sync-status');
+  if (status) status.textContent = 'Syncing…';
+  const cbName = 'sc_' + Date.now();
+  const script = document.createElement('script');
+  script.src = url + '?action=getScores&callback=' + cbName;
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.head.removeChild(script);
+    localStorage.setItem('sheetsSyncData', JSON.stringify(data));
+    if (status) status.textContent = '✓ Synced ' + data.length + ' audits from Sheets — ' + new Date().toLocaleTimeString();
+    renderDashboard();
+  };
+  script.onerror = function() {
+    delete window[cbName];
+    document.head.removeChild(script);
+    if (status) status.textContent = '✗ Sync failed — check Setup URL';
+    showToast('Sync failed — check your Apps Script URL in Setup');
+  };
+  document.head.appendChild(script);
+}
+
 function renderDashboard() {
-  const history = getAuditHistory();
+  const local = getAuditHistory();
+  const sheets = JSON.parse(localStorage.getItem('sheetsSyncData') || '[]');
+  const seen = new Set(local.map(r => r.store + '|' + r.date + '|' + r.brand));
+  const merged = [...local, ...sheets.filter(r => !seen.has(r.store + '|' + r.date + '|' + r.brand))];
+  const history = merged;
   const n = history.length;
 
   // Stats
