@@ -137,18 +137,35 @@ function doPost(e) {
 
     // ── PHOTO UPLOAD ──────────────────────────────────────────────
     if (data.action === 'uploadPhoto') {
-      var folder = getOrCreateFolder(data.store, data.date, data.section, data.country || 'SG');
-      var blob   = Utilities.newBlob(
-        Utilities.base64Decode(data.imageData),
-        data.mimeType || 'image/jpeg',
-        data.fileName || 'photo.jpg'
-      );
-      var file = folder.createFile(blob);
-      file.setDescription(data.caption || '');
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      return ContentService
-        .createTextOutput(JSON.stringify({ status:'success', driveUrl: file.getUrl() }))
-        .setMimeType(ContentService.MimeType.JSON);
+      try {
+        // Log the attempt to a debug sheet so we can see what's arriving
+        var dbg = ss.getSheetByName('Debug') || ss.insertSheet('Debug');
+        if (dbg.getLastRow() === 0) dbg.appendRow(['Time','Action','Store','Section','DataSize','Status','Error']);
+        var imgSize = data.imageData ? data.imageData.length : 0;
+        
+        var folder = getOrCreateFolder(data.store, data.date, data.section, data.country || 'SG');
+        var blob   = Utilities.newBlob(
+          Utilities.base64Decode(data.imageData),
+          data.mimeType || 'image/jpeg',
+          data.fileName || 'photo.jpg'
+        );
+        var file = folder.createFile(blob);
+        file.setDescription(data.caption || '');
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        dbg.appendRow([new Date().toISOString(), 'uploadPhoto', data.store, data.section, imgSize, 'SUCCESS', '']);
+        
+        return ContentService
+          .createTextOutput(JSON.stringify({ status:'success', driveUrl: file.getUrl() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch(uploadErr) {
+        var dbg2 = ss.getSheetByName('Debug') || ss.insertSheet('Debug');
+        dbg2.appendRow([new Date().toISOString(), 'uploadPhoto', data.store || '', data.section || '', 
+          data.imageData ? data.imageData.length : 0, 'FAILED', uploadErr.message]);
+        return ContentService
+          .createTextOutput(JSON.stringify({ status:'error', message: uploadErr.message }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
     // ── SAVE COMMENT ─────────────────────────────────────────────
@@ -204,7 +221,14 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     var sheet = ss.getSheetByName(RAW_SHEET) || ss.insertSheet(RAW_SHEET);
-    sheet.appendRow([
+    var headers = ['Timestamp','Country','Store','Brand','Tier','Channel Manager','Auditor','Audit Date','Type',
+      'Sec A %','Sec B %','Sec C %','Sec D %','Sec E %','Sec F %','Overall %','Grade','Passed','Total','Failed Items','Actions'];
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(headers);
+      sheet.getRange(1,1,1,headers.length).setBackground('#1a1a1a').setFontColor('#C8A84B').setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+    var rowData = [
       new Date().toISOString(),
       data.countryLabel || data.country,
       data.store, data.brand, data.tier, data.cm,
@@ -213,7 +237,35 @@ function doPost(e) {
       data.scoreD ?? '', data.scoreE ?? '', data.scoreF ?? '',
       data.overall, data.grade, data.passed, data.total,
       data.failedItems, data.actions
-    ]);
+    ];
+    sheet.appendRow(rowData);
+
+    // ── ALSO WRITE TO COUNTRY TAB ──────────────────────────────
+    var countryCode = data.country || 'Other';
+    var countryNames = { SG:'Singapore', MY:'Malaysia', HK:'Hong Kong', TH:'Thailand' };
+    var countryTabName = countryNames[countryCode] || countryCode;
+    var cSheet = ss.getSheetByName(countryTabName);
+    if (!cSheet) {
+      cSheet = ss.insertSheet(countryTabName);
+      cSheet.appendRow(headers);
+      cSheet.getRange(1,1,1,headers.length).setBackground('#1a1a1a').setFontColor('#C8A84B').setFontWeight('bold');
+      cSheet.setFrozenRows(1);
+    }
+    cSheet.appendRow(rowData);
+
+    // ── ALSO WRITE TO CM TAB ───────────────────────────────────
+    if (data.cm && data.cm !== '—') {
+      var cmTabName = 'CM — ' + data.cm;
+      var cmSheet = ss.getSheetByName(cmTabName);
+      if (!cmSheet) {
+        cmSheet = ss.insertSheet(cmTabName);
+        cmSheet.appendRow(headers);
+        cmSheet.getRange(1,1,1,headers.length).setBackground('#1a1a1a').setFontColor('#C8A84B').setFontWeight('bold');
+        cmSheet.setFrozenRows(1);
+      }
+      cmSheet.appendRow(rowData);
+    }
+
     return ContentService
       .createTextOutput(JSON.stringify({ status:'success' }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -227,6 +279,11 @@ function doPost(e) {
 
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── SEND TELEGRAM REPORT ─────────────────────────────────────
+  if (e && e.parameter && e.parameter.action === 'sendReport') {
+    return handleSendReport(e);
+  }
 
   // ── RETURN AUDIT SCORES ───────────────────────────────────────
   if (e && e.parameter && e.parameter.action === 'getScores') {
@@ -379,6 +436,146 @@ function getWeekLabel(dateStr) {
   var oneJan = new Date(d.getFullYear(), 0, 1);
   var wk = Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
   return 'W' + pad(wk) + ' - ' + mon;
+}
+
+// ── TELEGRAM BOT ──────────────────────────────────────────────────
+// Replace with your BotFather token
+var TELEGRAM_TOKEN = 'YOUR_BOT_TOKEN_HERE';
+var TELEGRAM_API   = 'https://api.telegram.org/bot' + TELEGRAM_TOKEN;
+
+// Send a Telegram message to a chat ID
+function sendTelegram(chatId, message) {
+  var url = TELEGRAM_API + '/sendMessage';
+  var payload = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: 'Markdown'
+  };
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  var response = UrlFetchApp.fetch(url, options);
+  var result = JSON.parse(response.getContentText());
+  return result.ok;
+}
+
+// Get CM chat ID from CM Contacts sheet
+function getCMChatId(cmName) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('CM Contacts');
+  if (!sheet) return null;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === cmName) return data[i][2]; // col C = Chat ID
+  }
+  return null;
+}
+
+// Called from dashboard "Send Report" button
+// cmName: e.g. "Johnathan"
+// weekLabel: e.g. "W13 - 2026-03-24"
+function sendWeeklyReport(cmName, weekLabel) {
+  var ss      = SpreadsheetApp.getActiveSpreadsheet();
+  var rawSheet = ss.getSheetByName('Raw Data');
+  if (!rawSheet) return { success: false, error: 'No Raw Data sheet' };
+
+  var chatId = getCMChatId(cmName);
+  if (!chatId) return { success: false, error: 'No Telegram Chat ID for ' + cmName };
+
+  // Pull all audits for this CM this week
+  var rows    = rawSheet.getDataRange().getValues();
+  var headers = rows[0];
+  var audits  = rows.slice(1).filter(function(r) {
+    return r[5] === cmName; // col F = CM
+  });
+
+  if (audits.length === 0) {
+    return { success: false, error: 'No audits found for ' + cmName };
+  }
+
+  // Pull previous week's audits for comparison
+  var prevWeekAudits = rows.slice(1).filter(function(r) {
+    return r[5] === cmName && r[7] !== audits[0][7]; // different date
+  });
+
+  var prevByStore = {};
+  prevWeekAudits.forEach(function(r) {
+    if (!prevByStore[r[2]] || r[7] > prevByStore[r[2]][7]) prevByStore[r[2]] = r;
+  });
+
+  // Build message
+  var totalAudits = audits.length;
+  var avgScore    = Math.round(audits.reduce(function(s,r){ return s + (r[15]||0); }, 0) / totalAudits);
+  var goldCount   = audits.filter(function(r){ return r[16] === 'Gold'; }).length;
+
+  var msg = '📊 *Weekly Audit Report*\n';
+  msg += '*' + cmName + '* | ' + weekLabel + '\n';
+  msg += '━━━━━━━━━━━━━━━━━━━━\n\n';
+  msg += '🏆 *Summary*\n';
+  msg += totalAudits + ' stores audited | Avg: *' + avgScore + '%* | Gold: ' + goldCount + '/' + totalAudits + '\n\n';
+
+  // Grade emoji
+  function gradeEmoji(g) {
+    return {Gold:'🥇',A:'🥈',B:'🅱️',C:'🅾️',D:'⚠️',E:'🔴'}[g] || '—';
+  }
+
+  // Per store details
+  audits.forEach(function(r) {
+    var store    = r[2];
+    var score    = r[15];
+    var grade    = r[16];
+    var failed   = r[19] ? r[19].split(' | ') : [];
+    var secScores = [r[9],r[10],r[11],r[12],r[13],r[14]];
+    var secLabels = ['A','B','C','D','E','F'];
+
+    // Trend vs previous week
+    var trend = '';
+    if (prevByStore[store]) {
+      var diff = score - prevByStore[store][15];
+      if (diff > 0) trend = ' ↑ +' + diff + '%';
+      else if (diff < 0) trend = ' ↓ ' + diff + '%';
+      else trend = ' → same';
+    }
+
+    msg += '🏪 *' + store + '*\n';
+    msg += gradeEmoji(grade) + ' ' + score + '% — ' + grade + trend + '\n';
+
+    // Section scores
+    var secLine = secLabels.map(function(l,i) {
+      return l + ': ' + (secScores[i] !== '' && secScores[i] !== null ? secScores[i] + '%' : '—');
+    }).join(' | ');
+    msg += '`' + secLine + '`\n';
+
+    // Failed criteria
+    if (failed.length > 0) {
+      msg += '❌ *To improve:*\n';
+      failed.slice(0,5).forEach(function(f) {
+        msg += '  • ' + f.trim() + '\n';
+      });
+    }
+    msg += '\n';
+  });
+
+  // Footer
+  msg += '━━━━━━━━━━━━━━━━━━━━\n';
+  msg += '_Sent from TC Retail Distribution Audit System_';
+
+  var sent = sendTelegram(chatId, msg);
+  return { success: sent, message: sent ? 'Report sent to ' + cmName : 'Failed to send' };
+}
+
+// Web App endpoint for sending report from dashboard
+// Called via: doGet?action=sendReport&cm=Johnathan&week=W13%20-%202026-03-24
+function handleSendReport(e) {
+  var cmName    = e.parameter.cm || '';
+  var weekLabel = e.parameter.week || '';
+  var result    = sendWeeklyReport(cmName, weekLabel);
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── ONE-TIME SETUP (run manually once after pasting) ──────────────
@@ -582,7 +779,29 @@ function setupSheets() {
   // Freeze first row of recent table
   D.setFrozenRows(1);
 
-  // Make Dashboard the active sheet
+  // ── CM CONTACTS SHEET ──────────────────────────────────────────
+  var contacts = ss.getSheetByName('CM Contacts') || ss.insertSheet('CM Contacts');
+  contacts.clearContents();
+  contacts.getRange(1,1,1,4).setValues([['CM Name','Country','Telegram Chat ID','Email']]);
+  contacts.getRange(1,1,1,4).setBackground('#1a1a1a').setFontColor('#C8A84B').setFontWeight('bold');
+  // Pre-fill CM names
+  var cmList = [
+    ['Sylvia','SG','',''],
+    ['Zhi Yong','SG','',''],
+    ['Johnathan','SG','',''],
+    ['Jerome','SG','',''],
+    ['Goh Xinyi','SG','',''],
+    ['Sinclair','SG','',''],
+    ['Adrian','MY','',''],
+    ['Jin Nong','MY','',''],
+    ['Ginger Kiang','HK','',''],
+    ['Ricky','HK','',''],
+    ['Ning','TH','',''],
+  ];
+  contacts.getRange(2,1,cmList.length,4).setValues(cmList);
+  contacts.setColumnWidth(1,140);
+  contacts.setColumnWidth(3,180);
+  contacts.setFrozenRows(1);
   ss.setActiveSheet(dash);
 
   SpreadsheetApp.getUi().alert("✓ Setup complete! Both sheets are ready.\n\nNext: Deploy this script as a Web App and paste the URL into the scorecard Setup tab.");
