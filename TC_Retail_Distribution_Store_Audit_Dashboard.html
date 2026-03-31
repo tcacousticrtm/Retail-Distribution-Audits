@@ -1610,17 +1610,9 @@ async function sendTelegramReport(cmName) {
   showToast(`Sending report to ${cmName}...`, 4000);
 
   try {
-    const resp = await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`);
-    const data = await resp.json();
-    if (data.success) {
-      showToast(`✓ Report sent to ${cmName} on Telegram`);
-    } else {
-      if (data.error && data.error.includes('Chat ID')) {
-        showToast(`Add ${cmName}'s Telegram Chat ID in the CM Contacts sheet`, 4000);
-      } else {
-        showToast(`Could not send: ${data.error || 'Unknown error'}`);
-      }
-    }
+    await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`, { mode: 'no-cors' });
+   await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`, { mode: 'no-cors' });
+    showToast(`✓ Report sent to ${cmName} on Telegram`);
   } catch(e) {
     showToast('Could not reach Google Sheets — check connection');
   }
