@@ -428,6 +428,7 @@ const ALL_STORES = [
   {name:'Harvey Norman @ Viva',            country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
   {name:'Harvey Norman @ West Mall',       country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
   {name:'Harvey Norman @ Northpoint',      country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ Suntec City',     country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
   {name:'Harvey Norman @ Hougang Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
   {name:'Harvey Norman @ Seletar Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
   {name:'Harvey Norman @ Punggol Coast',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
@@ -1611,7 +1612,6 @@ async function sendTelegramReport(cmName) {
 
   try {
     await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`, { mode: 'no-cors' });
-   await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`, { mode: 'no-cors' });
     showToast(`✓ Report sent to ${cmName} on Telegram`);
   } catch(e) {
     showToast('Could not reach Google Sheets — check connection');
