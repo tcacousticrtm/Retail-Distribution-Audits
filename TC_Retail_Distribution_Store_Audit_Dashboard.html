@@ -170,6 +170,7 @@ td.store-name{color:var(--text);font-size:12px;}
     <div class="nav-tab" onclick="switchTab('directory',this)">🗂 Store Directory</div>
     <div class="nav-tab" onclick="switchTab('calendar',this)">📅 Audit Calendar</div>
     <div class="nav-tab" onclick="switchTab('thisweek',this)">⚡ This Week</div>
+    <div class="nav-tab" onclick="switchTab('reports',this)">📱 Send Reports</div>
     <div class="nav-tab" onclick="switchTab('settings',this)">⚙ Settings</div>
   </div>
 </div>
@@ -248,6 +249,45 @@ td.store-name{color:var(--text);font-size:12px;}
     </div>
   </div>
   <div id="thisweek-content"></div>
+</div>
+
+<!-- ══ SEND REPORTS ══ -->
+<div class="tab-panel" id="tab-reports">
+
+  <div id="reports-no-url" class="drive-box" style="border-color:rgba(200,168,75,0.3);background:rgba(200,168,75,0.05);display:none;">
+    <div class="drive-box-title" style="color:var(--gold)">⚠️ Web App URL not connected</div>
+    <div class="drive-box-desc">Paste your Google Apps Script Web App URL in the <strong>Scores tab</strong> first, then come back here to send reports.</div>
+  </div>
+
+  <div class="settings-section" style="border-left:3px solid var(--gold);">
+    <div class="settings-title">📱 Weekly Reports — Send to All CMs</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.7;">
+      Sends each CM their own weekly audit report on Telegram. CMs only see their own stores.<br>
+      <span style="color:var(--amber)">Make sure your Apps Script is deployed and the Web App URL is saved in the Scores tab.</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+      <button class="btn btn-gold" onclick="sendAllCMReports()" id="btn-send-all-cms">📤 Send to All CMs</button>
+      <button class="btn btn-ghost" onclick="sendSylviaDigest()" id="btn-send-sylvia">👁 Send Full Digest to Me</button>
+      <span style="font-size:10px;color:var(--text-muted)">Sends all CMs' reports to your Telegram so you can preview what they receive</span>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Or send to individual CMs:</div>
+    <div id="individual-cm-buttons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+
+  <div class="settings-section" style="border-left:3px solid var(--gold);">
+    <div class="settings-title">🥇 Monthly Gold Summary</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.7;">
+      Sends each CM a summary of their Gold stores for the month. You receive the full cross-CM overview.
+    </div>
+    <button class="btn btn-gold" onclick="sendMonthlySummary()" id="btn-send-monthly">🏆 Send Monthly Gold Summary</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">Send Log</div>
+    <div id="send-log" style="font-size:11px;color:var(--text-muted);font-family:monospace;line-height:1.9;min-height:40px;">No sends yet this session.</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="document.getElementById('send-log').innerHTML='No sends yet this session.'">Clear log</button>
+  </div>
+
 </div>
 
 <!-- ══ SETTINGS ══ -->
@@ -413,108 +453,118 @@ td.store-name{color:var(--text);font-size:12px;}
 const ALL_STORES = [
   // ── SINGAPORE ──────────────────────────────────────────────────
   // Challenger (Zhi Yong)
-  ...[
-    'Great World City','Clementi Mall','Tiong Bahru','Parkway Parade','JEM','Bugis B1',
-    'Ang Mo Kio Hub','Causeway Point','Jurong Point','Northpoint','Tampines 1',
-    'Tampines Mall','Plaza Singapura','Vivocity','NEX','Bugis Junction','Lot One',
-    'IMM','ION','313','Paya Lebar HQ','Raffles City','Suntec City','Jewel',
-    'Pasir Ris Mall','Woodleigh Mall'
-  ].map(s => ({name:`Challenger @ ${s}`, country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:null, brands:['Sonos','Marshall','Bowers']})),
+  {name:'Challenger @ JEM',             country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:1, brands:['Sonos']},
+  {name:'Challenger @ Bugis B1',        country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:1, brands:['Sonos']},
+  {name:'Challenger @ Causeway Point',  country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:1, brands:['Sonos']},
+  {name:'Challenger @ Vivocity',        country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:1, brands:['Sonos']},
+  {name:'Challenger @ NEX',             country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:1, brands:['Sonos']},
+  {name:'Challenger @ Jurong Point',    country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:2, brands:['Sonos']},
+  {name:'Challenger @ Plaza Singapura', country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:2, brands:['Sonos']},
+  {name:'Challenger @ ION L4',          country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:2, brands:['Sonos']},
+  {name:'Challenger @ ION B3',          country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:2, brands:['Sonos']},
+  {name:'Challenger @ Parkway Parade',  country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
+  {name:'Challenger @ Ang Mo Kio Hub',  country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
+  {name:'Challenger @ Northpoint',      country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
+  {name:'Challenger @ Jewel',           country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
 
   // Harvey Norman (Johnathan)
-  {name:'Harvey Norman @ Millenia Walk',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman @ Parkway Parade',  country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman @ West Gate',       country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman @ Viva',            country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman @ West Mall',       country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman @ Northpoint',      country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman @ Suntec City',     country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman @ Hougang Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Harvey Norman @ Seletar Mall',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Harvey Norman @ Punggol Coast',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Harvey Norman @ Lot One',         country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Harvey Norman @ Jurong Point',    country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Harvey Norman @ Bukit Panjang',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:null, brands:['Sonos']},
+  {name:'Harvey Norman @ Millenia Walk',  country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ Parkway Parade', country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ West Gate',      country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman @ Viva',           country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ West Mall',      country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ Northpoint',     country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman @ Hougang Mall',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Seletar Mall',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Punggol Coast',  country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Lot One',        country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Harvey Norman @ Jurong Point',   country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:3, brands:['Sonos']},
 
   // Best Denki (Johnathan)
-  {name:'Best Denki @ Ngee Ann City',                   country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Best Denki @ Vivocity',                        country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Best Denki (Singapore) Pte Ltd @ Funan',       country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
-  {name:'Best Denki @ Great World City',                country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Best Denki @ Plaza Singapura',                 country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
-  {name:'Best Denki @ Junction 8',                      country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
-  {name:'Best Denki @ IMM',                             country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Best Denki @ Ngee Ann City',             country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki @ Vivocity',                  country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki (Singapore) Pte Ltd @ Funan', country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:1, brands:['Sonos']},
+  {name:'Best Denki @ Great World City',          country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Best Denki @ Plaza Singapura',           country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:2, brands:['Sonos']},
+  {name:'Best Denki @ Junction 8',                country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
+  {name:'Best Denki @ IMM',                       country:'SG', retailer:'Best Denki', cm:'Johnathan', tier:3, brands:['Sonos']},
 
   // Courts (Jerome)
-  {name:'Courts @ The Heeren',    country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
-  {name:'Courts @ Megastore',     country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
-  {name:'Courts @ NEX',           country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
-  {name:'Courts @ Jurong Point',  country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
-  {name:'Courts @ JEM',           country:'SG', retailer:'Courts', cm:'Jerome', tier:null, brands:['Sonos']},
+  {name:'Courts @ The Heeren',   country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
+  {name:'Courts @ Megastore',    country:'SG', retailer:'Courts', cm:'Jerome', tier:1, brands:['Sonos']},
+  {name:'Courts @ NEX',          country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
+  {name:'Courts @ Jurong Point', country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
+  {name:'Courts @ JEM',          country:'SG', retailer:'Courts', cm:'Jerome', tier:3, brands:['Sonos']},
 
-  // Jerome others
-  {name:'TK FOTO @ Funan',        country:'SG', retailer:'TK FOTO',    cm:'Jerome',    tier:null, brands:['Sonos']},
-  {name:'Connect IT @ Somerset',  country:'SG', retailer:'Connect IT', cm:'Jerome',    tier:null, brands:['Sonos']},
+  // Jerome — others
+  {name:'TK FOTO @ Funan',       country:'SG', retailer:'TK FOTO',    cm:'Jerome', tier:2, brands:['Sonos']},
+  {name:'Connect IT @ Somerset', country:'SG', retailer:'Connect IT', cm:'Jerome', tier:2, brands:['Sonos']},
 
   // Takashimaya (Goh Xinyi)
-  {name:'Takashimaya @ Ngee Ann City', country:'SG', retailer:'Takashimaya', cm:'Goh Xinyi', tier:null, brands:['Sonos','Bowers']},
+  {name:'Takashimaya @ Ngee Ann City', country:'SG', retailer:'Takashimaya', cm:'Goh Xinyi', tier:1, brands:['Sonos','Bowers']},
 
   // Sprint Cass (Sinclair)
-  ...[
-    {n:'Sprint Cass @ T1 E1'}, {n:'Sprint Cass @ T1 H1'}, {n:'Sprint Cass @ T2 E2'},
-    {n:'Sprint Cass @ T2 M2'}, {n:'Sprint Cass @ T3 E3'}, {n:'Sprint Cass @ T3 M3'}, {n:'Sprint Cass @ T4 E4'}
-  ].map(s => ({name:s.n, country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:null, brands:['Sonos']})),
+  {name:'Sprint Cass @ T2 E2', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:1, brands:['Sonos']},
+  {name:'Sprint Cass @ T1 E1', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:2, brands:['Sonos']},
+  {name:'Sprint Cass @ T3 M3', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:2, brands:['Sonos']},
+  {name:'Sprint Cass @ T3 E3', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:2, brands:['Sonos']},
+  {name:'Sprint Cass @ T1 H1', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:2, brands:['Sonos']},
+  {name:'Sprint Cass @ T2 M2', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:2, brands:['Sonos']},
+  {name:'Sprint Cass @ T4 E4', country:'SG', retailer:'Sprint Cass', cm:'Sinclair', tier:3, brands:['Sonos']},
 
-  // No CM
-  ...[
-    'Gain City @ Sungei Kadut Megastore','Gain City @ Marina Square',
-    'Chamber (Sports Fashion Pte Ltd)','AV Intelligence','Parisilk @ Holland Village',
-    'Commune Lifestyle Pte Ltd','Actually','Forty Two','Excel Hardware','Zepplin & Co'
-  ].map(s => ({name:s, country:'SG', retailer:s.split(' @')[0].split(' (')[0], cm:'—', tier:null, brands:['Sonos']})),
+  // Gain City (no CM)
+  {name:'Gain City @ Sungei Kadut Megastore', country:'SG', retailer:'Gain City', cm:'—', tier:2, brands:['Sonos']},
+  {name:'Gain City @ Marina Square',          country:'SG', retailer:'Gain City', cm:'—', tier:3, brands:['Sonos']},
+
+  // Lifestyle channels — quarterly demo check, no tier schedule
+  {name:'Chamber (Sports Fashion Pte Ltd)', country:'SG', retailer:'Chamber',        cm:'Sasha',  tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'AV Intelligence',                 country:'SG', retailer:'AV Intelligence', cm:'Shanny', tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'Parisilk @ Holland Village',      country:'SG', retailer:'Parisilk',        cm:'—',      tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'Commune Lifestyle Pte Ltd',       country:'SG', retailer:'Commune',         cm:'Sasha',  tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'Forty Two',                       country:'SG', retailer:'Forty Two',       cm:'Sasha',  tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'Excel Hardware',                  country:'SG', retailer:'Excel Hardware',  cm:'—',      tier:null, lifestyle:true, brands:['Sonos']},
+  {name:'Zepplin & Co',                    country:'SG', retailer:'Zepplin & Co',    cm:'—',      tier:null, lifestyle:true, brands:['Sonos']},
 
   // ── MALAYSIA ───────────────────────────────────────────────────
   // Harvey Norman — Adrian
-  {name:'Harvey Norman (MY) @ Ikano (IPC)',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Mid Valley',               country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Johor Paradigm Mall',      country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Johor Southkey',           country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Ipoh Parade',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ 1 Utama',                  country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ JB Toppen',                country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Suria Sabah',              country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Pavilion Damansara Heights',country:'MY',retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Bintulu',                  country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Ikano (IPC)',                country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Mid Valley',                 country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Johor Paradigm Mall',        country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Johor Southkey',             country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Ipoh Parade',                country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ 1 Utama',                    country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ JB Toppen',                  country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Suria Sabah',                country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion Damansara Heights', country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Bintulu',                    country:'MY', retailer:'Harvey Norman', cm:'Adrian',   tier:2, brands:['Sonos']},
   // Harvey Norman — Jin Nong
-  {name:'Harvey Norman (MY) @ Sunway Pyramid',           country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Pavilion KL',              country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Queensbay Mall',           country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ IOI City Mall',            country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Vivacity Mall',            country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Miri Times Square',        country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Ikea Batu Kawan',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Pavilion Bukit Jalil',     country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Sunway Carnival',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Penang Sunshine',          country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
-  {name:'Harvey Norman (MY) @ Gurney Plaza',             country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Sunway Pyramid',    country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion KL',       country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Queensbay Mall',    country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ IOI City Mall',     country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Vivacity Mall',     country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Miri Times Square', country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Ikea Batu Kawan',   country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Pavilion Bukit Jalil', country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Sunway Carnival',   country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:1, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Penang Sunshine',   country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
+  {name:'Harvey Norman (MY) @ Gurney Plaza',      country:'MY', retailer:'Harvey Norman', cm:'Jin Nong', tier:2, brands:['Sonos']},
   // TMT
-  {name:'TMT @ Mid Valley',         country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
-  {name:'TMT @ Sunway Pyramid',     country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
-  {name:'TMT @ JB Southkey',        country:'MY', retailer:'TMT', cm:'Adrian',   tier:2, brands:['Sonos','Bowers']},
+  {name:'TMT @ Mid Valley',     country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
+  {name:'TMT @ Sunway Pyramid', country:'MY', retailer:'TMT', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
+  {name:'TMT @ JB Southkey',    country:'MY', retailer:'TMT', cm:'Adrian',   tier:2, brands:['Sonos','Bowers']},
   // Flash Gadgets
   {name:'Flash Gadgets @ The Gardens Mall', country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:1, brands:['Sonos','Bowers']},
   {name:'Flash Gadgets @ IOI City Mall',    country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:2, brands:['Bowers']},
-  {name:'Flash Gadgets @ Mid Valley',       country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:null, brands:['Sonos','Bowers']},
-  {name:'Flash Gadgets @ Suria KLCC',       country:'MY', retailer:'Flash Gadgets', cm:'Jin Nong', tier:null, brands:['Sonos','Bowers']},
   // Urban Republic
-  {name:'Urban Republic @ Pavilion KL',    country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
-  {name:'Urban Republic @ Queensbay Mall', country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
-  {name:'Urban Republic @ Gurney Plaza',   country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
-  {name:'Urban Republic @ Tebrau City',    country:'MY', retailer:'Urban Republic', cm:'Adrian',   tier:3, brands:['Sonos']},
-  {name:'Urban Republic @ Aeon Bukit Tinggi',country:'MY',retailer:'Urban Republic',cm:'Adrian',   tier:3, brands:['Sonos']},
-  // No CM
-  {name:'All IT @ One Utama',         country:'MY', retailer:'All IT',    cm:'—', tier:null, brands:['Sonos']},
-  {name:'PC Image @ Johor Southkey',  country:'MY', retailer:'PC Image',  cm:'—', tier:null, brands:['Sonos']},
-  {name:'PC Image @ Sibu Delta Mall', country:'MY', retailer:'PC Image',  cm:'—', tier:null, brands:['Sonos']},
+  {name:'Urban Republic @ Pavilion KL',       country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Queensbay Mall',    country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Gurney Plaza',      country:'MY', retailer:'Urban Republic', cm:'Jin Nong', tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Tebrau City',       country:'MY', retailer:'Urban Republic', cm:'Adrian',   tier:3, brands:['Sonos']},
+  {name:'Urban Republic @ Aeon Bukit Tinggi', country:'MY', retailer:'Urban Republic', cm:'Adrian',   tier:3, brands:['Sonos']},
+  // PC Image (no CM)
+  {name:'PC Image @ Johor Southkey',  country:'MY', retailer:'PC Image', cm:'—', tier:2, brands:['Sonos']},
+  {name:'PC Image @ Sibu Delta Mall', country:'MY', retailer:'PC Image', cm:'—', tier:2, brands:['Sonos']},
 
   // ── HONG KONG ──────────────────────────────────────────────────
   // TechLife T1
@@ -541,29 +591,33 @@ const ALL_STORES = [
     'Tsuen Wan Plaza','Tuen Mun','Wong Chuk Hang'
   ].map(s => ({name:`AV Life ${s}`, country:'HK', retailer:'AV Life', cm:'Ginger Kiang', tier:3, brands:['Sonos']})),
   // Others HK
-  {name:'Cosmic Tech SSP',       country:'HK', retailer:'Cosmic Tech', cm:'Ginger Kiang', tier:3, brands:['Sonos']},
-  {name:'Fortress Golden Centre',country:'HK', retailer:'Fortress',    cm:'Ginger Kiang', tier:3, brands:['Sonos']},
-  {name:'Super King',            country:'HK', retailer:'Super King',  cm:'Ricky',        tier:null, brands:['Sonos']},
-  {name:'Super King CWB',        country:'HK', retailer:'Super King',  cm:'Ricky',        tier:null, brands:['Sonos']},
-  {name:'Radio Unison',          country:'HK', retailer:'Radio Unison',cm:'Ricky',        tier:null, brands:['Sonos']},
+  {name:'Cosmic Tech SSP',          country:'HK', retailer:'Cosmic Tech', cm:'Ginger Kiang', tier:3, brands:['Sonos']},
+  {name:'Fortress Golden Centre',   country:'HK', retailer:'Fortress',    cm:'Ginger Kiang', tier:3, brands:['Sonos']},
+  {name:'Super King @ Mongkok',     country:'HK', retailer:'Super King',  cm:'Ricky',        tier:2, brands:['Sonos']},
+  {name:'Super King @ Causeway Bay',country:'HK', retailer:'Super King',  cm:'Ricky',        tier:2, brands:['Sonos']},
+  {name:'Radio Unison',             country:'HK', retailer:'Radio Unison',cm:'Ricky',        tier:2, brands:['Sonos']},
 
   // ── THAILAND ───────────────────────────────────────────────────
   // Powerbuy
-  ...[
-    'Central World','Central Chidlom','Central Phuket','Central Samui'
-  ].map(s => ({name:`Powerbuy @ ${s}`, country:'TH', retailer:'Powerbuy', cm:'Ning', tier:null, brands:['Sonos']})),
+  {name:'Powerbuy @ centralwOrld',   country:'TH', retailer:'Powerbuy', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Powerbuy @ Central Chidlom',country:'TH', retailer:'Powerbuy', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Powerbuy @ Central Phuket', country:'TH', retailer:'Powerbuy', cm:'Ning', tier:3, brands:['Sonos']},
+  {name:'Powerbuy @ Central Samui',  country:'TH', retailer:'Powerbuy', cm:'Ning', tier:3, brands:['Sonos']},
   // Dotlife
-  ...[
-    'Central World','Paragon','Central Eastville','Central Rama 9','Promenade',
-    'Icon Siam','Mega Bangna','Central Westgate','Central Autthaya','Central Udonthani',
-    'Central Phuket','Central Chiangmai','Siam Paragon','Chiang Mai'
-  ].map(s => ({name:`Dotlife @ ${s}`, country:'TH', retailer:'Dotlife', cm:'Ning', tier:null, brands:['Sonos']})),
+  {name:'Dotlife @ centralwOrld',      country:'TH', retailer:'Dotlife', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Dotlife @ Mega Bangna',       country:'TH', retailer:'Dotlife', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Dotlife @ Central Rama 9',    country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
+  {name:'Dotlife @ Central Eastville', country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
+  {name:'Dotlife @ Central Chiangmai', country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
+  {name:'Dotlife @ Central Phuket',    country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
+  {name:'Dotlife @ Central Westgate',  country:'TH', retailer:'Dotlife', cm:'Ning', tier:3, brands:['Sonos']},
+  {name:'Dotlife @ Central Autthaya',  country:'TH', retailer:'Dotlife', cm:'Ning', tier:3, brands:['Sonos']},
+  {name:'Dotlife @ Central Udonthani', country:'TH', retailer:'Dotlife', cm:'Ning', tier:3, brands:['Sonos']},
+  {name:'Dotlife @ Promenade',         country:'TH', retailer:'Dotlife', cm:'Ning', tier:3, brands:['Sonos']},
   // Others TH
-  {name:'APP @ Paragon',              country:'TH', retailer:'APP',        cm:'Ning', tier:null, brands:['Sonos']},
-  {name:'iStudio @ Siam Paragon',     country:'TH', retailer:'iStudio',    cm:'Ning', tier:null, brands:['Sonos']},
-  {name:'Digital Lab @ Siam Discovery',country:'TH',retailer:'Digital Lab',cm:'Ning', tier:null, brands:['Sonos']},
-  {name:'Tech House @ One Bangkok',   country:'TH', retailer:'Tech House', cm:'Ning', tier:null, brands:['Sonos']},
-  {name:'LOFT @ Siam Paragon',        country:'TH', retailer:'LOFT',       cm:'Ning', tier:null, brands:['Sonos']},
+  {name:'Tech House @ One Bangkok',     country:'TH', retailer:'Tech House', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Digital Lab @ Siam Discovery', country:'TH', retailer:'Digital Lab',cm:'Ning', tier:2, brands:['Sonos']},
+  {name:'LOFT @ Siam Paragon',          country:'TH', retailer:'LOFT',       cm:'Ning', tier:3, brands:['Sonos']},
 ];
 
 // Add index IDs
@@ -632,14 +686,16 @@ function tierLabel(t) {
   return '—';
 }
 
-function tierFreq(t) {
+function tierFreq(t, lifestyle) {
+  if (lifestyle) return 'Lifestyle (Quarterly)';
   if (t === 1) return 'Bi-weekly';
   if (t === 2) return 'Monthly';
   if (t === 3) return 'Quarterly';
   return 'Not scheduled';
 }
 
-function tierPillHtml(t) {
+function tierPillHtml(t, lifestyle) {
+  if (lifestyle) return `<span class="tier-pill" style="background:rgba(154,122,184,0.12);color:var(--purple);border:1px solid rgba(154,122,184,0.3);">Lifestyle</span>`;
   if (t === 1) return `<span class="tier-pill tier-1">T1 Flagship</span>`;
   if (t === 2) return `<span class="tier-pill tier-2">T2 Standard</span>`;
   if (t === 3) return `<span class="tier-pill tier-3">T3 Basic</span>`;
@@ -722,7 +778,7 @@ function renderOverview() {
   const t1 = stores.filter(s => s.tier === 1).length;
   const t2 = stores.filter(s => s.tier === 2).length;
   const t3 = stores.filter(s => s.tier === 3).length;
-  const noTier = stores.filter(s => !s.tier).length;
+  const noTier = stores.filter(s => !s.tier && !s.lifestyle).length;
   const scheduled = t1 + t2 + t3;
 
   document.getElementById('overview-stats').innerHTML = `
@@ -748,7 +804,7 @@ function renderOverview() {
     const ct1 = cs.filter(s => s.tier===1).length;
     const ct2 = cs.filter(s => s.tier===2).length;
     const ct3 = cs.filter(s => s.tier===3).length;
-    const cnt = cs.filter(s => !s.tier).length;
+    const cnt = cs.filter(s => !s.tier && !s.lifestyle).length;
     const cCms = [...new Set(cs.map(s => s.cm))].filter(x => x && x !== '—');
     const brands = [...new Set(cs.flatMap(s => s.brands))];
 
@@ -781,7 +837,7 @@ function renderOverview() {
         <td style="color:var(--t1);font-weight:600">${rs.filter(s=>s.tier===1).length||'—'}</td>
         <td style="color:var(--t2);font-weight:600">${rs.filter(s=>s.tier===2).length||'—'}</td>
         <td style="color:var(--t3);font-weight:600">${rs.filter(s=>s.tier===3).length||'—'}</td>
-        <td style="color:var(--red)">${rs.filter(s=>!s.tier).length||'—'}</td>
+        <td style="color:var(--red)">${rs.filter(s=>!s.tier&&!s.lifestyle).length||'—'}</td>
         <td style="color:var(--text-muted)">${rCms.join(', ')||'—'}</td>
       </tr>`;
     });
@@ -805,7 +861,7 @@ function renderOverview() {
       <td style="color:var(--t1)">${cs.filter(s=>s.tier===1).length||'—'}</td>
       <td style="color:var(--t2)">${cs.filter(s=>s.tier===2).length||'—'}</td>
       <td style="color:var(--t3)">${cs.filter(s=>s.tier===3).length||'—'}</td>
-      <td style="color:var(--red)">${cs.filter(s=>!s.tier).length||'—'}</td>
+      <td style="color:var(--red)">${cs.filter(s=>!s.tier&&!s.lifestyle).length||'—'}</td>
       <td style="color:var(--text-muted);font-size:10px">${retailers.join(', ')}</td>
     </tr>`;
   });
@@ -851,10 +907,10 @@ function renderDirectory() {
       <td>${countryFlag(s.country)} ${s.country}</td>
       <td class="store-name">${s.name}</td>
       <td style="color:var(--text-muted)">${s.retailer}</td>
-      <td>${tierPillHtml(s.tier)}</td>
+      <td>${tierPillHtml(s.tier, s.lifestyle)}</td>
       <td style="color:var(--text-dim)">${s.cm}</td>
       <td style="font-size:10px;color:var(--text-muted)">${s.brands.join(', ')}</td>
-      <td style="font-size:10px;color:${s.tier?'var(--text-dim)':'var(--red)'}">${tierFreq(s.tier)}</td>
+      <td style="font-size:10px;color:${(s.tier||s.lifestyle)?'var(--text-dim)':'var(--red)'}">${tierFreq(s.tier, s.lifestyle)}</td>
     </tr>`).join('');
 }
 
@@ -1121,7 +1177,7 @@ function renderSettings() {
     ? `Currently in ${activeQ.name} Week ${currentWeek} of 13 · ${getWeekDateRange(currentWeek)}`
     : 'No active quarter right now';
 
-  const stores = getAllStores().filter(s => !s.tier);
+  const stores = getAllStores().filter(s => !s.tier && !s.lifestyle);
   const container = document.getElementById('untiered-stores');
   if (!stores.length) { container.innerHTML = `<div style="font-size:12px;color:var(--green)">✓ All stores have tiers assigned.</div>`; return; }
 
@@ -1179,6 +1235,7 @@ function switchTab(id, el) {
   if (id === 'directory')  renderDirectory();
   if (id === 'calendar')   renderCalendar();
   if (id === 'thisweek')   renderThisWeek();
+  if (id === 'reports')   renderReportsTab();
   if (id === 'settings')   renderSettings();
   if (id === 'scores') {
     loadScoresData();
@@ -1611,11 +1668,107 @@ async function sendTelegramReport(cmName) {
   showToast(`Sending report to ${cmName}...`, 4000);
 
   try {
-    await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`, { mode: 'no-cors' });
-    showToast(`✓ Report sent to ${cmName} on Telegram`);
+    const resp = await fetch(`${url}?action=sendReport&cm=${encodeURIComponent(cmName)}&week=${encodeURIComponent(weekStr)}`);
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`✓ Report sent to ${cmName} on Telegram`);
+    } else {
+      if (data.error && data.error.includes('Chat ID')) {
+        showToast(`Add ${cmName}'s Telegram Chat ID in the CM Contacts sheet`, 4000);
+      } else {
+        showToast(`Could not send: ${data.error || 'Unknown error'}`);
+      }
+    }
   } catch(e) {
     showToast('Could not reach Google Sheets — check connection');
   }
+}
+
+// ─── SEND REPORTS TAB ─────────────────────────────────────────────
+const CM_LIST = ['Zhi Yong','Johnathan','Jerome','Goh Xinyi','Sinclair','Adrian','Jin Nong','Ginger Kiang','Ricky','Ning'];
+
+function getWebAppUrl() {
+  return localStorage.getItem('tcScoresSheetUrl') || '';
+}
+
+function logSend(msg, ok) {
+  var el = document.getElementById('send-log');
+  var prev = el.innerHTML === 'No sends yet this session.' ? '' : el.innerHTML;
+  var time = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--text-muted)';
+  el.innerHTML = prev + `<span style="color:${color}">[${time}] ${msg}</span>\n`;
+}
+
+function renderReportsTab() {
+  var url = getWebAppUrl();
+  document.getElementById('reports-no-url').style.display = url ? 'none' : 'block';
+  var container = document.getElementById('individual-cm-buttons');
+  container.innerHTML = CM_LIST.map(cm =>
+    `<button class="btn btn-ghost btn-sm" onclick="sendReportToCM('${cm}')" id="btn-cm-${cm.replace(/\s+/g,'_')}">📱 ${cm}</button>`
+  ).join('');
+}
+
+function getWeekStr() {
+  const currentWeek = getCurrentQuarterWeek();
+  const weekLabel = currentWeek ? getWeekDateRange(currentWeek) : '';
+  return (settings.quarterName||'Q') + ' Week ' + currentWeek + ' — ' + weekLabel;
+}
+
+async function callAction(action, extraParams) {
+  const url = getWebAppUrl();
+  if (!url) { showToast('Connect Web App URL in Scores tab first'); return null; }
+  const params = new URLSearchParams({ action, ...extraParams });
+  try {
+    const resp = await fetch(url + '?' + params.toString());
+    return await resp.json();
+  } catch(e) {
+    return { success: false, error: 'Could not reach Apps Script — check URL' };
+  }
+}
+
+async function sendReportToCM(cmName) {
+  const btnId = 'btn-cm-' + cmName.replace(/\s+/g,'_');
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending…'; }
+  logSend('Sending report to ' + cmName + '…');
+  const data = await callAction('sendReport', { cm: cmName, week: getWeekStr() });
+  const ok = data && data.success;
+  logSend(cmName + ': ' + (ok ? '✓ Sent' : '✗ ' + (data?.error || 'Failed')), ok);
+  showToast(ok ? '✓ Report sent to ' + cmName : '✗ Failed: ' + (data?.error || 'check log'));
+  if (btn) { btn.disabled = false; btn.innerHTML = '📱 ' + cmName; }
+}
+
+async function sendAllCMReports() {
+  const btn = document.getElementById('btn-send-all-cms');
+  btn.disabled = true; btn.textContent = '⏳ Sending…';
+  logSend('Sending weekly reports to all CMs…');
+  const data = await callAction('sendAllWeeklyReports', { week: getWeekStr() });
+  const ok = data && data.success;
+  logSend('All CMs: ' + (ok ? '✓ Done — ' + (data.sent||'') : '✗ ' + (data?.error||'Failed')), ok);
+  showToast(ok ? '✓ All CM reports sent' : '✗ Failed — check log');
+  btn.disabled = false; btn.textContent = '📤 Send to All CMs';
+}
+
+async function sendSylviaDigest() {
+  const btn = document.getElementById('btn-send-sylvia');
+  btn.disabled = true; btn.textContent = '⏳ Sending…';
+  logSend('Sending full digest to you…');
+  const data = await callAction('sendSylviaDigest', {});
+  const ok = data && data.success;
+  logSend('Manager digest: ' + (ok ? '✓ Sent to your Telegram' : '✗ ' + (data?.error||'Failed')), ok);
+  showToast(ok ? '✓ Digest sent to your Telegram' : '✗ Failed — check log');
+  btn.disabled = false; btn.textContent = '👁 Send Full Digest to Me';
+}
+
+async function sendMonthlySummary() {
+  const btn = document.getElementById('btn-send-monthly');
+  btn.disabled = true; btn.textContent = '⏳ Sending…';
+  logSend('Sending monthly gold summary to all CMs…');
+  const data = await callAction('sendMonthlyGoldSummary', {});
+  const ok = data && data.success;
+  logSend('Monthly summary: ' + (ok ? '✓ Sent to all CMs + you' : '✗ ' + (data?.error||'Failed')), ok);
+  showToast(ok ? '✓ Monthly gold summary sent' : '✗ Failed — check log');
+  btn.disabled = false; btn.textContent = '🏆 Send Monthly Gold Summary';
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
