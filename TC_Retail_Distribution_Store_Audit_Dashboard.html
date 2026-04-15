@@ -236,6 +236,7 @@ td.store-name{color:var(--text);font-size:12px;}
   </div>
   <div class="cal-grid" id="cal-grid"></div>
   <div id="cal-week-detail"></div>
+  <div id="cal-coverage"></div>
 </div>
 
 <!-- ══ THIS WEEK ══ -->
@@ -374,6 +375,9 @@ td.store-name{color:var(--text);font-size:12px;}
     <span class="filter-count" id="scores-last-updated"></span>
   </div>
 
+  <!-- Month filter pills (shown only in By CM view) -->
+  <div id="scores-month-bar" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);gap:6px;flex-wrap:wrap;align-items:center;"></div>
+
   <!-- Main scores output -->
   <div id="scores-output">
     <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
@@ -466,6 +470,10 @@ const ALL_STORES = [
   {name:'Challenger @ Ang Mo Kio Hub',  country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
   {name:'Challenger @ Northpoint',      country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
   {name:'Challenger @ Jewel',           country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos']},
+  {name:'Challenger @ Tampines Mall',   country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos','Marshall']},
+  {name:'Challenger @ 313',             country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos','Marshall']},
+  {name:'Challenger @ Lot One',         country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos','Marshall']},
+  {name:'Challenger @ PLQ',             country:'SG', retailer:'Challenger', cm:'Zhi Yong', tier:3, brands:['Sonos','Marshall']},
 
   // Harvey Norman (Johnathan)
   {name:'Harvey Norman @ Millenia Walk',  country:'SG', retailer:'Harvey Norman', cm:'Johnathan', tier:1, brands:['Sonos']},
@@ -743,6 +751,13 @@ function getSchedule() {
   const t3Weeks = [4, 7, 11];
   t3.forEach((s, i) => {
     const w = t3Weeks[i % 3];
+    schedule[w].push(s._id);
+  });
+
+  // Lifestyle: end-of-quarter sweep → weeks 11, 12, 13
+  const lifestyle = stores.filter(s => s.lifestyle);
+  lifestyle.forEach((s, i) => {
+    const w = 11 + (i % 3);
     schedule[w].push(s._id);
   });
 
@@ -1233,7 +1248,7 @@ function switchTab(id, el) {
   if (el) el.classList.add('active');
   if (id === 'overview')   renderOverview();
   if (id === 'directory')  renderDirectory();
-  if (id === 'calendar')   renderCalendar();
+  if (id === 'calendar')   { renderCalendar(); renderQuarterCoverage(); }
   if (id === 'thisweek')   renderThisWeek();
   if (id === 'reports')   renderReportsTab();
   if (id === 'settings')   renderSettings();
@@ -1380,6 +1395,23 @@ function gradePill(g, score) {
   return `<span style="font-weight:700;color:${c}">${score??'—'}% <span style="font-size:10px;background:${c}18;border:1px solid ${c}44;border-radius:3px;padding:1px 5px;">${g||'?'}</span></span>`;
 }
 
+// ─── BRAND BADGE HELPER ───────────────────────────────────────────
+function brandBadge(brand) {
+  if (!brand) return '<span style="color:var(--text-muted);font-size:10px;">—</span>';
+  const norm = brand.toLowerCase();
+  let bg, color, border;
+  if (norm.includes('sonos')) {
+    bg='rgba(122,168,184,0.15)'; color='var(--blue)'; border='rgba(122,168,184,0.35)';
+  } else if (norm.includes('bowers') || norm.includes('b&w')) {
+    bg='rgba(200,168,75,0.15)'; color='var(--gold)'; border='rgba(200,168,75,0.35)';
+  } else if (norm.includes('marshall')) {
+    bg='rgba(154,122,184,0.15)'; color='var(--purple)'; border='rgba(154,122,184,0.35)';
+  } else {
+    bg='rgba(200,200,200,0.08)'; color='var(--text-dim)'; border='rgba(200,200,200,0.2)';
+  }
+  return `<span style="font-size:10px;font-weight:600;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;white-space:nowrap;">${brand}</span>`;
+}
+
 // ─── RENDER SCORES ────────────────────────────────────────────────
 function renderScores() {
   loadScoresData();
@@ -1409,9 +1441,11 @@ function renderScores() {
   }
 
   if (view === 'cm') renderScoresByCM(data, out);
-  else if (view === 'country') renderScoresByCountry(data, out);
-  else if (view === 'month') renderScoresByMonth(data, out);
-  else if (view === 'week') renderScoresByWeek(data, out);
+  else if (view === 'country') { scoresMonthFilter = 'all'; renderScoresByCountry(data, out); }
+  else if (view === 'month') { scoresMonthFilter = 'all'; renderScoresByMonth(data, out); }
+  else if (view === 'week') { scoresMonthFilter = 'all'; renderScoresByWeek(data, out); }
+
+  renderMonthBar(data);
 
   document.getElementById('scores-last-updated').textContent = `${data.length} records`;
 }
@@ -1422,25 +1456,31 @@ function renderScoresByCM(data, out) {
 
   cms.forEach(cm => {
     const cmData = data.filter(r=>r.cm===cm);
-    // Get latest score per store
-    const byStore = {};
+    // Get latest score per store+brand combo (SG/MY multi-brand stores get separate rows)
+    const byStoreBrand = {};
     cmData.forEach(r => {
-      if (!byStore[r.store] || r.date > byStore[r.store].date) byStore[r.store] = r;
+      const key = r.store + '|' + (r.brand||'');
+      if (!byStoreBrand[key] || r.date > byStoreBrand[key].date) byStoreBrand[key] = r;
     });
-    const latest = Object.values(byStore);
+    const latest = Object.values(byStoreBrand);
     const avg = latest.length ? Math.round(latest.reduce((a,b)=>a+(b.overall||0),0)/latest.length) : null;
     const gold = latest.filter(r=>r.grade==='Gold').length;
     const country = [...new Set(cmData.map(r=>r.country))].map(c=>countryFlag(c)+' '+c).join(', ');
 
-    // All audits sorted by date desc for the history columns
-    const allByStore = {};
+    // All audits sorted by date desc, grouped by store+brand
+    const allByStoreBrand = {};
     cmData.sort((a,b)=>b.date.localeCompare(a.date)).forEach(r => {
-      if (!allByStore[r.store]) allByStore[r.store] = [];
-      allByStore[r.store].push(r);
+      const key = r.store + '|' + (r.brand||'');
+      if (!allByStoreBrand[key]) allByStoreBrand[key] = [];
+      allByStoreBrand[key].push(r);
     });
 
-    // Get up to 4 most recent audit dates across all stores
+    // Get up to 4 most recent audit dates across all store+brand combos
+    // If a month filter is active, restrict to dates in that month
     const allDates = [...new Set(cmData.map(r=>r.date))].sort((a,b)=>b.localeCompare(a)).slice(0,4);
+    const filteredDates = scoresMonthFilter === 'all'
+      ? allDates
+      : allDates.filter(d => d.startsWith(scoresMonthFilter));
 
     html += `
     <div class="tbl-wrap" style="margin-bottom:16px;">
@@ -1459,18 +1499,22 @@ function renderScoresByCM(data, out) {
       <table>
         <thead><tr>
           <th>Store</th><th>Tier</th><th>Brand</th>
-          ${allDates.map(d=>`<th style="text-align:center">${formatDateShort(d)}</th>`).join('')}
-          <th style="text-align:center">Latest</th>
+          ${filteredDates.map(d=>`<th style="text-align:center">${formatDateShort(d)}</th>`).join('')}
+          <th style="text-align:center">${scoresMonthFilter==='all'?'Latest':'Score'}</th>
           <th style="text-align:center">Trend</th>
         </tr></thead>
         <tbody>
-        ${Object.entries(allByStore).map(([store, audits]) => {
-          const dateScores = allDates.map(d => {
+        ${Object.entries(allByStoreBrand).map(([_key, audits]) => {
+          const dateScores = filteredDates.map(d => {
             const a = audits.find(r=>r.date===d);
             return a ? `<td style="text-align:center">${gradePill(a.grade,a.overall)}</td>` : '<td style="text-align:center;color:var(--text-muted)">—</td>';
           }).join('');
-          const latest2 = audits[0];
-          const prev = audits[1];
+          // When month is filtered, "latest" = most recent audit in that month; else overall latest
+          const relevantAudits = scoresMonthFilter === 'all'
+            ? audits
+            : audits.filter(r => r.date?.startsWith(scoresMonthFilter));
+          const latest2 = relevantAudits[0] || audits[0];
+          const prev = audits[relevantAudits.length] || audits[1];
           let trend = '—';
           if (latest2?.overall && prev?.overall) {
             const diff = latest2.overall - prev.overall;
@@ -1479,9 +1523,9 @@ function renderScoresByCM(data, out) {
                   : `<span style="color:var(--text-muted)">→ —</span>`;
           }
           return `<tr>
-            <td class="store-name">${store}</td>
+            <td class="store-name">${latest2?.store||'—'}</td>
             <td>${tierPillHtml(parseTier(latest2?.tier))}</td>
-            <td style="font-size:10px;color:var(--text-muted)">${latest2?.brand||'—'}</td>
+            <td>${brandBadge(latest2?.brand)}</td>
             ${dateScores}
             <td style="text-align:center">${gradePill(latest2?.grade, latest2?.overall)}</td>
             <td style="text-align:center;font-size:11px">${trend}</td>
@@ -1499,9 +1543,13 @@ function renderScoresByCountry(data, out) {
   let html = '';
   countries.forEach(c => {
     const cd = data.filter(r=>r.country===c);
-    const byStore = {};
-    cd.forEach(r => { if (!byStore[r.store]||r.date>byStore[r.store].date) byStore[r.store]=r; });
-    const latest = Object.values(byStore);
+    // Group by store+brand so multi-brand stores each get their own row
+    const byStoreBrand = {};
+    cd.forEach(r => {
+      const key = r.store + '|' + (r.brand||'');
+      if (!byStoreBrand[key]||r.date>byStoreBrand[key].date) byStoreBrand[key]=r;
+    });
+    const latest = Object.values(byStoreBrand);
     const avg = latest.length ? Math.round(latest.reduce((a,b)=>a+(b.overall||0),0)/latest.length) : null;
     html += `
     <div class="tbl-wrap" style="margin-bottom:12px;">
@@ -1518,7 +1566,7 @@ function renderScoresByCountry(data, out) {
           <tr>
             <td class="store-name">${r.store}</td>
             <td style="color:var(--text-muted)">${r.cm||'—'}</td>
-            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td>${brandBadge(r.brand)}</td>
             <td>${tierPillHtml(parseTier(r.tier))}</td>
             <td style="text-align:center">${gradePill(r.grade,r.overall)}</td>
             <td style="text-align:center;font-size:10px;color:var(--text-muted)">${formatDateShort(r.date)}</td>
@@ -1561,7 +1609,7 @@ function renderScoresByMonth(data, out) {
             <td style="color:var(--text-muted);font-size:10px">${formatDateShort(r.date)}</td>
             <td class="store-name">${r.store}</td>
             <td>${countryFlag(r.country||'')} ${r.country||'—'}</td>
-            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td>${brandBadge(r.brand)}</td>
             <td style="color:var(--text-muted)">${r.cm||'—'}</td>
             <td style="text-align:center;font-weight:700;color:${scoreColor(r.overall)}">${r.overall??'—'}%</td>
             <td style="text-align:center"><span style="font-weight:700;color:${gradeColor(r.grade)}">${r.grade||'—'}</span></td>
@@ -1618,7 +1666,7 @@ function renderScoresByWeek(data, out) {
             <td class="store-name">${r.store}</td>
             <td>${countryFlag(r.country||'')} ${r.country||'—'}</td>
             <td style="color:var(--text-muted)">${r.cm||'—'}</td>
-            <td style="font-size:10px;color:var(--text-muted)">${r.brand||'—'}</td>
+            <td>${brandBadge(r.brand)}</td>
             <td style="text-align:center;font-weight:700;color:${scoreColor(r.overall)}">${r.overall??'—'}%</td>
             <td style="text-align:center"><span style="font-weight:700;color:${gradeColor(r.grade)}">${r.grade||'—'}</span></td>
           </tr>`).join('')}
@@ -1769,6 +1817,147 @@ async function sendMonthlySummary() {
   logSend('Monthly summary: ' + (ok ? '✓ Sent to all CMs + you' : '✗ ' + (data?.error||'Failed')), ok);
   showToast(ok ? '✓ Monthly gold summary sent' : '✗ Failed — check log');
   btn.disabled = false; btn.textContent = '🏆 Send Monthly Gold Summary';
+}
+
+// ─── SCORES MONTH FILTER ─────────────────────────────────────────
+let scoresMonthFilter = 'all';
+
+function renderMonthBar(data) {
+  const bar = document.getElementById('scores-month-bar');
+  if (!bar) return;
+  const view = document.getElementById('scores-view').value;
+  if (view !== 'cm') { bar.style.display = 'none'; return; }
+  const months = [...new Set(data.map(r => r.date?.substring(0,7)))].filter(Boolean).sort((a,b)=>b.localeCompare(a));
+  if (!months.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const fmtMonth = m => new Date(m+'-01').toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+  bar.innerHTML =
+    '<span style="font-size:10px;color:var(--text-muted);margin-right:2px;flex-shrink:0;">Month:</span>' +
+    ['all', ...months].map(m => {
+      const label = m === 'all' ? 'All' : fmtMonth(m);
+      const active = scoresMonthFilter === m;
+      return `<button onclick="setScoresMonth('${m}')" style="padding:3px 11px;border-radius:20px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:${active?'700':'400'};border:1px solid ${active?'var(--gold)':'var(--border2)'};background:${active?'var(--gold-bg)':'transparent'};color:${active?'var(--gold)':'var(--text-muted)'};">${label}</button>`;
+    }).join('');
+}
+
+function setScoresMonth(m) {
+  scoresMonthFilter = m;
+  renderScores();
+}
+
+// ─── QUARTER COVERAGE TRACKER ────────────────────────────────────
+function renderQuarterCoverage() {
+  const container = document.getElementById('cal-coverage');
+  if (!container) return;
+  loadScoresData();
+  const currentWeek = getCurrentQuarterWeek();
+  if (!currentWeek || !settings.quarterStart) { container.innerHTML = ''; return; }
+
+  const qStart = new Date(settings.quarterStart);
+  const qEnd = new Date(qStart); qEnd.setDate(qStart.getDate() + 13*7 - 1);
+  const qLabel = settings.quarterName || 'Q';
+
+  // Scores this quarter
+  const qScores = scoresData.filter(r => {
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    return d >= qStart && d <= qEnd;
+  });
+  const auditedKeys = new Set(qScores.map(r => r.store + '|' + (r.brand||'')));
+
+  // All tiered stores (exclude unassigned)
+  const tieredStores = getAllStores().filter(s => s.tier);
+  const lifestyleStores = getAllStores().filter(s => s.lifestyle);
+  const allTracked = [...tieredStores, ...lifestyleStores];
+
+  // Per-store: audited if ANY of its brands has a record this quarter
+  const storeAudited = s => s.brands.some(b => auditedKeys.has(s.name + '|' + b))
+    || auditedKeys.has(s.name + '|'); // fallback for records without brand
+
+  const cms = [...new Set(tieredStores.map(s => s.cm))].filter(c => c && c !== '—').sort();
+  const totalStores  = tieredStores.filter(s => s.cm && s.cm !== '—').length;
+  const auditedCount = tieredStores.filter(s => s.cm && s.cm !== '—' && storeAudited(s)).length;
+  const overallPct = totalStores ? Math.round(auditedCount/totalStores*100) : 0;
+  const weeksLeft = 13 - currentWeek;
+
+  let html = `<div style="margin-top:24px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.8px;">
+      📋 ${qLabel} Quarter Coverage — Week ${currentWeek} of 13
+    </div>
+    <!-- Summary bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:${overallPct===100?'var(--green)':overallPct>=60?'var(--amber)':'var(--red)'}">${overallPct}%</div>
+        <div style="font-size:10px;color:var(--text-muted)">Overall coverage</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--green)">${auditedCount}</div>
+        <div style="font-size:10px;color:var(--text-muted)">Audited</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--red)">${totalStores-auditedCount}</div>
+        <div style="font-size:10px;color:var(--text-muted)">Not yet audited</div>
+      </div>
+      <div style="margin-left:auto;font-size:11px;color:var(--text-muted);text-align:right;">
+        <span style="color:var(--amber);font-weight:600">${weeksLeft} week${weeksLeft!==1?'s':''} remaining</span><br>
+        ${totalStores-auditedCount > 0 ? `<span style="font-size:10px;">≈ ${Math.ceil((totalStores-auditedCount)/Math.max(weeksLeft,1))} stores/week needed</span>` : '<span style="color:var(--green);font-size:10px;">✓ All stores covered!</span>'}
+      </div>
+    </div>`;
+
+  // Per-CM blocks
+  cms.forEach(cm => {
+    const cmStores = tieredStores.filter(s => s.cm === cm);
+    const done = cmStores.filter(storeAudited);
+    const todo = cmStores.filter(s => !storeAudited(s));
+    const pct = cmStores.length ? Math.round(done.length/cmStores.length*100) : 0;
+    const borderColor = done.length === cmStores.length ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+
+    html += `<div class="week-section" style="border-left:3px solid ${borderColor};margin-bottom:8px;padding:12px 14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${todo.length||done.length?'10px':'0'}">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">${cm}</span>
+        <span style="font-size:10px;color:var(--text-muted)">${done.length}/${cmStores.length} audited</span>
+        <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;max-width:120px;">
+          <div style="width:${pct}%;height:100%;background:${borderColor};border-radius:3px;transition:width 0.3s;"></div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${borderColor}">${pct}%</span>
+      </div>`;
+
+    if (todo.length) {
+      html += `<div style="margin-bottom:7px;">
+        <div style="font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">⏳ Not yet audited</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          ${todo.map(s => `<span style="font-size:10px;background:rgba(192,96,96,0.08);border:1px solid rgba(192,96,96,0.22);color:var(--text-dim);border-radius:4px;padding:2px 8px;">${s.name} ${tierPillHtml(s.tier)}</span>`).join('')}
+        </div>
+      </div>`;
+    }
+    if (done.length) {
+      html += `<div>
+        <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">✓ Audited this quarter</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          ${done.map(s => {
+            const last = qScores.filter(r=>r.store===s.name).sort((a,b)=>b.date.localeCompare(a.date))[0];
+            return `<span style="font-size:10px;background:rgba(106,170,98,0.08);border:1px solid rgba(106,170,98,0.22);color:var(--text-dim);border-radius:4px;padding:2px 8px;">${s.name}<span style="color:var(--text-muted);margin-left:4px;">${last?formatDateShort(last.date):''}</span></span>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  });
+
+  // Lifestyle stores at bottom
+  if (lifestyleStores.length) {
+    const lDone = lifestyleStores.filter(storeAudited);
+    const lTodo = lifestyleStores.filter(s => !storeAudited(s));
+    html += `<div class="week-section" style="border-left:3px solid var(--purple);margin-bottom:8px;padding:12px 14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">Lifestyle Channels</span>
+        <span style="font-size:10px;color:var(--text-muted)">${lDone.length}/${lifestyleStores.length} audited · scheduled end of quarter (Weeks 11–13)</span>
+      </div>
+      ${lTodo.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${lTodo.map(s=>`<span style="font-size:10px;background:rgba(154,122,184,0.08);border:1px solid rgba(154,122,184,0.22);color:var(--text-dim);border-radius:4px;padding:2px 8px;">${s.name}</span>`).join('')}</div>` : '<span style="font-size:10px;color:var(--green)">✓ All lifestyle stores audited this quarter</span>'}
+    </div>`;
+  }
+
+  container.innerHTML = html + '</div>';
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
