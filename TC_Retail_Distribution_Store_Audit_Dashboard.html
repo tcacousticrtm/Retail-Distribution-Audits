@@ -337,17 +337,20 @@ td.store-name{color:var(--text);font-size:12px;}
 <!-- ══ SCORES TAB ══ -->
 <div class="tab-panel" id="tab-scores">
 
-  <!-- Connection banner -->
-  <div id="scores-connect-banner" class="drive-box" style="border-color:rgba(200,168,75,0.3);background:rgba(200,168,75,0.05);">
-    <div class="drive-box-title" style="color:var(--gold)">📊 Connect to Google Sheets to auto-load scores</div>
-    <div class="drive-box-desc">
-      Scores are pulled automatically from the Retail Distribution Audit Google Sheet. Paste your Web App URL below — this is the same URL used in the Audit Scorecard Setup tab. Once connected, all submitted audit scores appear here automatically.<br><br>
-      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-        <input id="scores-sheet-url" class="setting-input" type="text" placeholder="https://script.google.com/macros/s/..." style="flex:1;min-width:280px;" oninput="saveScoreUrl()">
-        <button class="btn btn-gold" onclick="fetchScores()">Load Scores</button>
-        <button class="btn btn-ghost" onclick="hideConnectBanner()">I'll enter manually</button>
-      </div>
-      <div style="font-size:10px;color:var(--text-muted);margin-top:6px;" id="scores-url-status"></div>
+  <!-- Permanent connection bar — always visible -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">📊 Apps Script URL</span>
+      <input id="scores-sheet-url" class="setting-input" type="text"
+        placeholder="https://script.google.com/macros/s/..."
+        style="flex:1;min-width:220px;font-size:11px;"
+        oninput="saveScoreUrl()">
+      <button class="btn btn-gold btn-sm" onclick="fetchScores()" id="scores-refresh-btn">↻ Load / Refresh Scores</button>
+      <span style="font-size:10px;color:var(--text-muted);" id="scores-url-status"></span>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:7px;line-height:1.6;">
+      Paste your <strong style="color:var(--text-dim)">Google Apps Script Web App URL</strong> above — this is the <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;">script.google.com/macros/s/…</code> URL, <em>not</em> the Google Sheets edit link.
+      Find it in Apps Script → Deploy → Manage Deployments.
     </div>
   </div>
 
@@ -370,7 +373,6 @@ td.store-name{color:var(--text);font-size:12px;}
       <option value="">All Brands</option>
       <option>Sonos</option><option>Marshall</option><option>Bowers</option>
     </select>
-    <button class="btn btn-ghost btn-sm" onclick="fetchScores()" id="scores-refresh-btn" style="display:none">↻ Refresh</button>
     <button class="btn btn-ghost btn-sm" onclick="exportScoresSummary()">Export CSV</button>
     <span class="filter-count" id="scores-last-updated"></span>
   </div>
@@ -725,9 +727,9 @@ function getSchedule() {
   const schedule = {}; // week (1-13) -> [store ids]
   for (let w = 1; w <= 13; w++) schedule[w] = [];
 
-  const t1 = stores.filter(s => s.tier === 1);
-  const t2 = stores.filter(s => s.tier === 2);
-  const t3 = stores.filter(s => s.tier === 3);
+  const t1 = stores.filter(s => s.tier === 1 && !s.lifestyle);
+  const t2 = stores.filter(s => s.tier === 2 && !s.lifestyle);
+  const t3 = stores.filter(s => s.tier === 3 && !s.lifestyle);
 
   // T1: group A (odd weeks) and B (even weeks)
   const t1OddWeeks  = [1,3,5,7,9,11,13];
@@ -1257,8 +1259,7 @@ function switchTab(id, el) {
     const savedUrl = localStorage.getItem('tcScoresSheetUrl');
     if (savedUrl) {
       document.getElementById('scores-sheet-url').value = savedUrl;
-      document.getElementById('scores-connect-banner').style.display = 'none';
-      document.getElementById('scores-refresh-btn').style.display = 'inline-block';
+      document.getElementById('scores-url-status').textContent = '✓ URL saved';
     }
     renderScores();
   }
@@ -1316,10 +1317,6 @@ function saveScoreUrl() {
   localStorage.setItem('tcScoresSheetUrl', url);
 }
 
-function hideConnectBanner() {
-  document.getElementById('scores-connect-banner').style.display = 'none';
-}
-
 async function fetchScores() {
   const url = localStorage.getItem('tcScoresSheetUrl') ||
               document.getElementById('scores-sheet-url')?.value?.trim();
@@ -1339,13 +1336,12 @@ async function fetchScores() {
       scoresData.push({...r, _key: key, _source: 'sheets'});
     });
     saveScoresData();
-    document.getElementById('scores-last-updated').textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
-    if (statusEl) statusEl.textContent = `✓ ${data.length} records loaded`;
-    document.getElementById('scores-refresh-btn').style.display = 'inline-block';
+    if (statusEl) statusEl.textContent = `✓ ${data.length} records loaded — ${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
+    document.getElementById('scores-last-updated').textContent = `${data.length} records`;
     renderScores();
     showToast(`✓ ${data.length} audit records loaded`);
   } catch(e) {
-    if (statusEl) statusEl.textContent = 'Could not fetch — check URL or see Apps Script update below';
+    if (statusEl) statusEl.textContent = '✗ Could not fetch — check URL';
     showToast('Could not fetch scores — make sure you updated the Apps Script');
   }
 }
@@ -1865,8 +1861,8 @@ function renderQuarterCoverage() {
   });
   const auditedKeys = new Set(qScores.map(r => r.store + '|' + (r.brand||'')));
 
-  // All tiered stores (exclude unassigned)
-  const tieredStores = getAllStores().filter(s => s.tier);
+  // All tiered stores — explicitly exclude lifestyle regardless of any tier override in localStorage
+  const tieredStores = getAllStores().filter(s => s.tier && !s.lifestyle);
   const lifestyleStores = getAllStores().filter(s => s.lifestyle);
   const allTracked = [...tieredStores, ...lifestyleStores];
 
@@ -1926,7 +1922,7 @@ function renderQuarterCoverage() {
       html += `<div style="margin-bottom:7px;">
         <div style="font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">⏳ Not yet audited</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">
-          ${todo.map(s => `<span style="font-size:10px;background:rgba(192,96,96,0.08);border:1px solid rgba(192,96,96,0.22);color:var(--text-dim);border-radius:4px;padding:2px 8px;">${s.name} ${tierPillHtml(s.tier)}</span>`).join('')}
+          ${todo.map(s => `<span style="font-size:10px;background:rgba(192,96,96,0.08);border:1px solid rgba(192,96,96,0.22);color:var(--text-dim);border-radius:4px;padding:2px 8px;">${s.name} ${tierPillHtml(s.tier, s.lifestyle)}</span>`).join('')}
         </div>
       </div>`;
     }
