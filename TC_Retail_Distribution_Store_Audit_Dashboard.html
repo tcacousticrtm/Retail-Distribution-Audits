@@ -489,7 +489,10 @@ td.store-name{color:var(--text);font-size:12px;}
     <div class="drive-box-desc">
       A store-brand pair is <strong style="color:var(--gold)">Gold</strong> when its <strong>best audit score this quarter ≥ 90%</strong>.
       Tracked per brand per store across Sonos · Marshall · Bowers &amp; Wilkins.
-      Gold Rate = Gold pairs ÷ audited pairs, reported by tier.
+      Gold Rate = Gold pairs ÷ audited pairs, reported by tier.<br><br>
+      <span style="color:var(--t1)">▌</span> <strong style="color:var(--t1)">T1 Flagship — 100% Gold target</strong> &nbsp;·&nbsp;
+      <span style="color:var(--t2)">▌</span> <strong style="color:var(--t2)">T2 Standard — 80% Gold target</strong> &nbsp;·&nbsp;
+      <span style="color:var(--t3)">▌</span> <strong style="color:var(--t3)">T3 Basic — Pass / Fail</strong> (Pass ≥70%, no Critical failures)
     </div>
   </div>
 
@@ -1427,6 +1430,9 @@ function loadScoresData() {
             store: r.store, country: r.countryLabel || r.country,
             brand: r.brand, tier: r.tier, cm: r.cm,
             date: r.date, overall: r.overall, grade: r.grade,
+            calculatedGrade: r.calculatedGrade||'', criticalFailCount: r.criticalFailCount||0,
+            criticalFails: r.criticalFails||'', manualOverride: r.manualOverride||'',
+            manualOverrideBy: r.manualOverrideBy||'', gradeSource: r.gradeSource||'',
             failedItems: r.failedItems || '', critNotes: r.critNotes || {}, actions: r.actions || '',
             auditor: r.auditor || '', closedItems: r.closedItems || {},
             scoreA: r.scoreA, scoreB: r.scoreB, scoreC: r.scoreC,
@@ -1509,8 +1515,24 @@ function toggleManualEntry() {
 
 // ─── GRADE HELPERS ────────────────────────────────────────────────
 function gradeColor(g) {
-  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)'}[g]||'var(--text-muted)';
+  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)',FAIL:'var(--red)',PASS:'var(--green)'}[g]||'var(--text-muted)';
 }
+
+// resolveGrade: treat r.grade as authoritative (final grade including Critical cap
+// and manual overrides). Falls back to deriving from overall% for old records.
+function resolveGrade(r) {
+  if (r.grade) return r.grade;
+  const o = r.overall;
+  if (o === null || o === undefined) return '—';
+  if (o >= 90) return 'Gold';
+  if (o >= 80) return 'A';
+  if (o >= 70) return 'B';
+  if (o >= 60) return 'C';
+  if (o >= 50) return 'D';
+  return 'E';
+}
+// isGoldGrade: use final grade, not raw %. Replaces all (r.overall||0) >= 90 checks.
+function isGoldGrade(r) { return resolveGrade(r) === 'Gold'; }
 function scoreColor(s) {
   if (!s && s!==0) return 'var(--text-muted)';
   if (s>=90) return 'var(--gold)'; if (s>=80) return 'var(--blue)';
@@ -2164,7 +2186,7 @@ function renderQuarterCoverage() {
 
 // ─── GOLD TRACKER ────────────────────────────────────────────────
 // Targets per tier (editable in Settings in future)
-const GOLD_TARGETS = { 1: 70, 2: 40, 3: 20 };
+const GOLD_TARGETS = { 1: 100, 2: 80 };
 
 function getGoldTrackerData() {
   loadScoresData();
@@ -2232,38 +2254,48 @@ function renderGoldTracker() {
 
   document.getElementById('gt-record-count').textContent = `${filtered.length} store-brand pairs`;
 
-  const goldPairs   = filtered.filter(r => (r.overall||0) >= 90);
-  const nonGold     = filtered.filter(r => (r.overall||0) < 90);
+  const goldPairs   = filtered.filter(r => isGoldGrade(r));
+  const nonGold     = filtered.filter(r => !isGoldGrade(r));
   const goldRate    = filtered.length ? Math.round(goldPairs.length / filtered.length * 100) : 0;
   const avgScore    = filtered.length ? Math.round(filtered.reduce((a,r)=>a+(r.overall||0),0)/filtered.length) : null;
 
-  // ── KPI Summary Cards ──────────────────────────────────────────
-  const goldColor = goldRate >= 70 ? 'var(--green)' : goldRate >= 40 ? 'var(--amber)' : 'var(--red)';
-  const qLabel = settings.quarterName || 'This Quarter';
-  const qStartFmt = result.qStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  const qEndFmt   = result.qEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  // ── T3 / T1+T2 separation & KPI calculations ─────────────────
+  const t12Pairs    = filtered.filter(r => parseTier(r.tier) !== 3);
+  const t3Pairs     = filtered.filter(r => parseTier(r.tier) === 3);
+  const t12Gold     = t12Pairs.filter(r => isGoldGrade(r));
+  const t12NonGold  = t12Pairs.filter(r => !isGoldGrade(r));
+  const t12GoldRate = t12Pairs.length ? Math.round(t12Gold.length / t12Pairs.length * 100) : 0;
+  const t3Pass      = t3Pairs.filter(r => resolveGrade(r) === 'PASS');
+  const t3Fail      = t3Pairs.filter(r => resolveGrade(r) === 'FAIL');
+  const goldColor   = t12GoldRate >= 80 ? 'var(--green)' : t12GoldRate >= 60 ? 'var(--amber)' : 'var(--red)';
+  const qLabel      = settings.quarterName || 'This Quarter';
+  const qStartFmt   = result.qStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  const qEndFmt     = result.qEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  const t3Display   = t3Pairs.length
+    ? t3Pass.length + ' <span style="font-size:14px;color:var(--text-muted)">/ ' + t3Pairs.length + '</span>'
+    : '—';
 
   document.getElementById('gt-kpi-cards').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:4px;">
       <div class="stat-card" style="border-color:rgba(200,168,75,0.3);">
-        <div class="stat-num" style="color:var(--gold)">${goldPairs.length}</div>
+        <div class="stat-num" style="color:var(--gold)">${t12Gold.length}</div>
         <div class="stat-label">Gold Pairs</div>
-        <div class="stat-sub">store × brand ≥ 90%</div>
+        <div class="stat-sub">T1 + T2 · best of quarter</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num" style="color:${goldColor}">${goldRate}%</div>
-        <div class="stat-label">Gold Rate</div>
-        <div class="stat-sub">${goldPairs.length} of ${filtered.length} pairs</div>
+        <div class="stat-num" style="color:${goldColor}">${t12GoldRate}%</div>
+        <div class="stat-label">Gold Rate (T1+T2)</div>
+        <div class="stat-sub">${t12Gold.length} of ${t12Pairs.length} pairs</div>
+      </div>
+      <div class="stat-card" style="border-color:rgba(122,168,184,0.25);">
+        <div class="stat-num" style="color:var(--t3)">${t3Display}</div>
+        <div class="stat-label">T3 Passing</div>
+        <div class="stat-sub">${t3Pairs.length ? t3Fail.length + ' failing' : 'No T3 data yet'}</div>
       </div>
       <div class="stat-card">
         <div class="stat-num" style="color:${scoreColor(avgScore)}">${avgScore??'—'}%</div>
         <div class="stat-label">Avg Best Score</div>
-        <div class="stat-sub">Best per pair this ${qLabel}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num" style="color:var(--red)">${nonGold.length}</div>
-        <div class="stat-label">Below Gold</div>
-        <div class="stat-sub">Pairs needing improvement</div>
+        <div class="stat-sub">All tiers · best per pair</div>
       </div>
       <div class="stat-card">
         <div class="stat-num" style="color:var(--text-dim);font-size:16px;padding-top:4px;">${qLabel}</div>
@@ -2273,71 +2305,170 @@ function renderGoldTracker() {
     </div>`;
 
   // ── Tier Breakdown ─────────────────────────────────────────────
-  const tierMeta = [
-    { t: 1, label: 'T1 Flagship', color: 'var(--t1)', target: GOLD_TARGETS[1] },
-    { t: 2, label: 'T2 Standard', color: 'var(--t2)', target: GOLD_TARGETS[2] },
-    { t: 3, label: 'T3 Basic',    color: 'var(--t3)', target: GOLD_TARGETS[3] },
-  ];
-
   let tierHtml = `
     <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px;">
       📊 Gold Rate by Tier
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">`;
 
-  tierMeta.forEach(({t, label, color, target}) => {
-    const tierPairs = filtered.filter(r => parseTier(r.tier) === t);
-    const tierGold  = tierPairs.filter(r => (r.overall||0) >= 90);
-    const rate      = tierPairs.length ? Math.round(tierGold.length/tierPairs.length*100) : null;
-    const onTrack   = rate !== null && rate >= target;
-    const barColor  = rate === null ? 'var(--border2)' : onTrack ? 'var(--green)' : rate >= target*0.7 ? 'var(--amber)' : 'var(--red)';
-    const fillPct   = rate !== null ? Math.min(rate, 100) : 0;
-    const targetPct = Math.min(target, 100);
-
-    tierHtml += `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;">
+  // T1 card
+  const t1Pairs   = filtered.filter(r => parseTier(r.tier) === 1);
+  const t1Gold    = t1Pairs.filter(r => isGoldGrade(r));
+  const t1Rate    = t1Pairs.length ? Math.round(t1Gold.length/t1Pairs.length*100) : null;
+  const t1OnTrack = t1Rate !== null && t1Rate >= 100;
+  const t1Color   = t1Rate === null ? 'var(--border2)' : t1OnTrack ? 'var(--green)' : t1Rate >= 70 ? 'var(--amber)' : 'var(--red)';
+  tierHtml += `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <span style="font-size:11px;font-weight:700;color:${color}">${label}</span>
-          ${rate !== null
-            ? `<span style="font-size:10px;${onTrack?'color:var(--green)':'color:var(--amber)'};">${onTrack?'✓ On track':'↗ Below target'}</span>`
-            : `<span style="font-size:10px;color:var(--text-muted)">No data</span>`}
+          <span style="font-size:11px;font-weight:700;color:var(--t1)">T1 Flagship</span>
+          ${t1Rate !== null ? `<span style="font-size:10px;${t1OnTrack ? 'color:var(--green)' : 'color:var(--amber)'};">${t1OnTrack ? '✓ On track' : '↗ Below target'}</span>` : `<span style="font-size:10px;color:var(--text-muted)">No data</span>`}
         </div>
-        <div style="font-size:32px;font-weight:800;color:${barColor};line-height:1;margin-bottom:4px;">${rate!==null?rate+'%':'—'}</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;">${tierGold.length} gold of ${tierPairs.length} pairs · Target: ${target}%</div>
-        <!-- Progress track with target marker -->
+        <div style="font-size:32px;font-weight:800;color:${t1Color};line-height:1;margin-bottom:4px;">${t1Rate !== null ? t1Rate + '%' : '—'}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;">${t1Gold.length} gold of ${t1Pairs.length} pairs · Target: 100%</div>
         <div style="position:relative;height:8px;background:var(--surface2);border-radius:4px;overflow:visible;">
-          <div style="width:${fillPct}%;height:100%;background:${barColor};border-radius:4px;transition:width 0.5s;"></div>
-          <!-- Target marker -->
-          <div style="position:absolute;top:-3px;left:${targetPct}%;width:2px;height:14px;background:var(--text-muted);border-radius:1px;transform:translateX(-50%);" title="Target: ${target}%"></div>
+          <div style="width:${t1Rate ?? 0}%;height:100%;background:${t1Color};border-radius:4px;transition:width 0.5s;"></div>
+          <div style="position:absolute;top:-3px;left:100%;width:2px;height:14px;background:var(--text-muted);border-radius:1px;transform:translateX(-50%);" title="Target: 100%"></div>
         </div>
-        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;text-align:right;">Target ${target}%</div>
+        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;text-align:right;">Target 100%</div>
       </div>`;
-  });
+
+  // T2 card
+  const t2Pairs   = filtered.filter(r => parseTier(r.tier) === 2);
+  const t2Gold    = t2Pairs.filter(r => isGoldGrade(r));
+  const t2Rate    = t2Pairs.length ? Math.round(t2Gold.length/t2Pairs.length*100) : null;
+  const t2OnTrack = t2Rate !== null && t2Rate >= 80;
+  const t2Color   = t2Rate === null ? 'var(--border2)' : t2OnTrack ? 'var(--green)' : t2Rate >= 56 ? 'var(--amber)' : 'var(--red)';
+  tierHtml += `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:11px;font-weight:700;color:var(--t2)">T2 Standard</span>
+          ${t2Rate !== null ? `<span style="font-size:10px;${t2OnTrack ? 'color:var(--green)' : 'color:var(--amber)'};">${t2OnTrack ? '✓ On track' : '↗ Below target'}</span>` : `<span style="font-size:10px;color:var(--text-muted)">No data</span>`}
+        </div>
+        <div style="font-size:32px;font-weight:800;color:${t2Color};line-height:1;margin-bottom:4px;">${t2Rate !== null ? t2Rate + '%' : '—'}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;">${t2Gold.length} gold of ${t2Pairs.length} pairs · Target: 80%</div>
+        <div style="position:relative;height:8px;background:var(--surface2);border-radius:4px;overflow:visible;">
+          <div style="width:${t2Rate ?? 0}%;height:100%;background:${t2Color};border-radius:4px;transition:width 0.5s;"></div>
+          <div style="position:absolute;top:-3px;left:80%;width:2px;height:14px;background:var(--text-muted);border-radius:1px;transform:translateX(-50%);" title="Target: 80%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;text-align:right;">Target 80%</div>
+      </div>`;
+
+  // T3 card — Pass / Fail only
+  tierHtml += `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:11px;font-weight:700;color:var(--t3)">T3 Basic</span>
+          <span style="font-size:10px;background:rgba(122,168,184,0.12);color:var(--t3);border:1px solid rgba(122,168,184,0.25);border-radius:4px;padding:1px 6px;">Pass / Fail</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="text-align:center;background:rgba(106,170,98,0.06);border:1px solid rgba(106,170,98,0.2);border-radius:6px;padding:8px 4px;">
+            <div style="font-size:28px;font-weight:800;color:var(--green)">${t3Pass.length}</div>
+            <div style="font-size:10px;color:var(--text-muted)">Passing</div>
+          </div>
+          <div style="text-align:center;background:rgba(192,96,96,0.06);border:1px solid rgba(192,96,96,0.2);border-radius:6px;padding:8px 4px;">
+            <div style="font-size:28px;font-weight:800;color:var(--red)">${t3Fail.length}</div>
+            <div style="font-size:10px;color:var(--text-muted)">Failing</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);text-align:center;">${t3Pairs.length} T3 pairs · Pass ≥70%, no Critical failures</div>
+      </div>`;
+
   tierHtml += '</div>';
 
-  // ── Country Breakdown bar ──────────────────────────────────────
+  // ── Country Breakdown (T1+T2 Gold Rate only) ───────────────────────
   const countries = [
-    {code:'SG',flag:'🇸🇬'},{code:'MY',flag:'🇲🇾'},{code:'HK',flag:'🇭🇰'},{code:'TH',flag:'🇹🇭'}
+    {code:'SG',flag:'🇸🇬'},
+    {code:'MY',flag:'🇲🇾'},
+    {code:'HK',flag:'🇭🇰'},
+    {code:'TH',flag:'🇹🇭'}
   ];
   tierHtml += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:0;">
-    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.8px;">🌏 Gold Rate by Country</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.8px;">🌏 T1+T2 Gold Rate by Country</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">`;
 
   countries.forEach(({code, flag}) => {
-    const cp = filtered.filter(r => r.country === code);
-    const cg = cp.filter(r => (r.overall||0) >= 90);
+    const cp = t12Pairs.filter(r => r.country === code);
+    const cg = cp.filter(r => isGoldGrade(r));
     const cr = cp.length ? Math.round(cg.length/cp.length*100) : null;
-    const cColor = cr === null ? 'var(--text-muted)' : cr >= 70 ? 'var(--green)' : cr >= 40 ? 'var(--amber)' : 'var(--red)';
+    const cColor = cr === null ? 'var(--text-muted)' : cr >= 80 ? 'var(--green)' : cr >= 60 ? 'var(--amber)' : 'var(--red)';
     tierHtml += `
       <div style="text-align:center;">
         <div style="font-size:22px;margin-bottom:2px;">${flag}</div>
-        <div style="font-size:20px;font-weight:800;color:${cColor}">${cr!==null?cr+'%':'—'}</div>
+        <div style="font-size:20px;font-weight:800;color:${cColor}">${cr !== null ? cr + '%' : '—'}</div>
         <div style="font-size:10px;color:var(--text-muted)">${code} · ${cg.length}/${cp.length}</div>
         <div style="margin-top:6px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;">
-          <div style="width:${cr??0}%;height:100%;background:${cColor};border-radius:2px;"></div>
+          <div style="width:${cr ?? 0}%;height:100%;background:${cColor};border-radius:2px;"></div>
         </div>
       </div>`;
   });
+  tierHtml += '</div></div>';
+
+  // ── Brand Breakdown ───────────────────────────────────────────────
+  const brandDefs = [
+    {key:'sonos',    label:'Sonos'},
+    {key:'marshall', label:'Marshall'},
+    {key:'bowers',   label:'Bowers'},
+  ];
+  tierHtml += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-top:10px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.8px;">🎵 Performance by Brand</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">`;
+
+  brandDefs.forEach(({key, label}) => {
+    const bAll  = filtered.filter(r => (r.brand||'').toLowerCase().includes(key));
+    if (!bAll.length) return;
+    const bt12  = bAll.filter(r => parseTier(r.tier) !== 3);
+    const bt3   = bAll.filter(r => parseTier(r.tier) === 3);
+    const bGold = bt12.filter(r => isGoldGrade(r));
+    const bRate = bt12.length ? Math.round(bGold.length/bt12.length*100) : null;
+    const bt3P  = bt3.filter(r => resolveGrade(r) === 'PASS');
+    const bAvg  = bAll.length ? Math.round(bAll.reduce((a,r)=>a+(r.overall||0),0)/bAll.length) : null;
+    const bColor = bRate === null ? 'var(--text-muted)' : bRate >= 80 ? 'var(--green)' : bRate >= 60 ? 'var(--amber)' : 'var(--red)';
+
+    const bT1     = bt12.filter(r => parseTier(r.tier) === 1);
+    const bT1Gold = bT1.filter(r => isGoldGrade(r));
+    const bT1Rate = bT1.length ? Math.round(bT1Gold.length/bT1.length*100) : null;
+    const bT2     = bt12.filter(r => parseTier(r.tier) === 2);
+    const bT2Gold = bT2.filter(r => isGoldGrade(r));
+    const bT2Rate = bT2.length ? Math.round(bT2Gold.length/bT2.length*100) : null;
+
+    const mktData = ['SG','MY','HK','TH'].map(code => {
+      const cp = bt12.filter(r => r.country === code);
+      const cg = cp.filter(r => isGoldGrade(r));
+      const cr = cp.length ? Math.round(cg.length/cp.length*100) : null;
+      return {code, total:cp.length, gold:cg.length, rate:cr};
+    }).filter(m => m.total > 0);
+
+    const mktHtml = mktData.map(({code, total, gold, rate}) => {
+      const mc = rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--amber)' : 'var(--red)';
+      return `<span style="font-size:11px;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;white-space:nowrap;">${countryFlag(code)} ${code} <span style="color:${mc};font-weight:700;">${rate}%</span> <span style="color:var(--text-muted);font-size:10px;">${gold}/${total}</span></span>`;
+    }).join('');
+
+    const tierPillsHtml = [
+      bT1.length ? `<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:rgba(74,154,106,0.1);color:var(--t1);border:1px solid rgba(74,154,106,0.25);">T1 ${bT1Rate !== null ? bT1Rate+'%' : '—'} <span style="color:var(--text-muted);font-size:9px;">${bT1Gold.length}/${bT1.length}</span></span>` : '',
+      bT2.length ? `<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:rgba(200,168,75,0.1);color:var(--t2);border:1px solid rgba(200,168,75,0.25);">T2 ${bT2Rate !== null ? bT2Rate+'%' : '—'} <span style="color:var(--text-muted);font-size:9px;">${bT2Gold.length}/${bT2.length}</span></span>` : '',
+      bt3.length  ? `<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:rgba(122,168,184,0.1);color:var(--t3);border:1px solid rgba(122,168,184,0.25);">T3 ${bt3P.length}/${bt3.length} pass</span>` : '',
+    ].filter(Boolean).join('');
+
+    tierHtml += `
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div style="flex-shrink:0;min-width:80px;">${brandBadge(label)}</div>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style="font-size:28px;font-weight:800;color:${bColor}">${bRate !== null ? bRate+'%' : '—'}</span>
+            <div style="font-size:10px;color:var(--text-muted);line-height:1.4;">T1+T2 Gold<br>${bGold.length}/${bt12.length} pairs</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            ${tierPillsHtml}
+          </div>
+          <div style="margin-left:auto;text-align:right;flex-shrink:0;">
+            <div style="font-size:18px;font-weight:700;color:${scoreColor(bAvg)}">${bAvg !== null ? bAvg+'%' : '—'}</div>
+            <div style="font-size:10px;color:var(--text-muted);">avg score</div>
+          </div>
+        </div>
+        ${mktData.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">${mktHtml}</div>` : ''}
+      </div>`;
+  });
+
   tierHtml += '</div></div>';
 
   document.getElementById('gt-tier-breakdown').innerHTML = tierHtml;
@@ -2351,8 +2482,8 @@ function renderGoldTracker() {
 
   // Sort: Gold first, then by score desc
   const sorted = [...filtered].sort((a,b) => {
-    const ag = (a.overall||0) >= 90 ? 1 : 0;
-    const bg = (b.overall||0) >= 90 ? 1 : 0;
+    const ag = isGoldGrade(a) ? 1 : 0;
+    const bg = isGoldGrade(b) ? 1 : 0;
     if (bg !== ag) return bg - ag;
     return (b.overall||0) - (a.overall||0);
   });
@@ -2378,11 +2509,30 @@ function renderGoldTracker() {
         </tr></thead>
         <tbody>
         ${sorted.map((r,i) => {
-          const isGold = (r.overall||0) >= 90;
-          const gapToGold = isGold ? 0 : 90 - (r.overall||0);
-          const statusHtml = isGold
-            ? `<span style="font-size:10px;font-weight:700;background:rgba(200,168,75,0.15);color:var(--gold);border:1px solid rgba(200,168,75,0.35);border-radius:4px;padding:2px 8px;">🏆 Gold</span>`
-            : `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border2);border-radius:4px;padding:2px 8px;">+${gapToGold}% to Gold</span>`;
+          const isGold = isGoldGrade(r);
+          const finalGrade = resolveGrade(r);
+          const hasCriticalCap = (r.gradeSource === 'criticalCap') || (!r.gradeSource && (r.criticalFailCount||0) > 0);
+          const hasOverride = r.gradeSource === 'override-fail' || r.gradeSource === 'override-pass' || (!r.gradeSource && r.manualOverride);
+          const gradeSuffix = hasCriticalCap
+            ? `<span title="${r.criticalFailCount||'?'} Critical fail—grade auto-capped" style="font-size:9px;background:rgba(192,96,96,0.2);color:var(--red);border-radius:3px;padding:1px 4px;margin-left:4px;">⚠${r.criticalFailCount||''}</span>`
+            : hasOverride ? `<span title="Manual override" style="font-size:9px;background:rgba(192,96,96,0.15);color:var(--red);border-radius:3px;padding:1px 4px;margin-left:4px;">✱</span>` : '';
+          const _isT3row = parseTier(r.tier) === 3;
+          let statusHtml;
+          if (_isT3row) {
+            const _t3g = resolveGrade(r);
+            statusHtml = _t3g === 'PASS'
+              ? `<span style="font-size:10px;font-weight:700;background:rgba(106,170,98,0.12);color:var(--green);border:1px solid rgba(106,170,98,0.3);border-radius:4px;padding:2px 8px;">✓ Pass</span>`
+              : `<span style="font-size:10px;font-weight:700;background:rgba(192,96,96,0.12);color:var(--red);border:1px solid rgba(192,96,96,0.3);border-radius:4px;padding:2px 8px;">✗ Fail</span>`;
+          } else if (isGold) {
+            statusHtml = `<span style="font-size:10px;font-weight:700;background:rgba(200,168,75,0.15);color:var(--gold);border:1px solid rgba(200,168,75,0.35);border-radius:4px;padding:2px 8px;">🏆 Gold</span>`;
+          } else if (finalGrade === 'FAIL') {
+            statusHtml = `<span style="font-size:10px;font-weight:700;background:rgba(192,96,96,0.12);color:var(--red);border:1px solid rgba(192,96,96,0.3);border-radius:4px;padding:2px 8px;">✗ Manual fail</span>`;
+          } else if (hasCriticalCap) {
+            const gap = 90-(r.overall||0);
+            statusHtml = `<span style="font-size:10px;color:var(--red);border:1px solid var(--border2);border-radius:4px;padding:2px 8px;">⚠ Fix Critical${gap>0?' + +'+gap+'%':''}</span>`;
+          } else {
+            statusHtml = `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border2);border-radius:4px;padding:2px 8px;">+${90-(r.overall||0)}% to Gold</span>`;
+          }
           return `<tr style="${isGold?'background:rgba(200,168,75,0.03)':''}">
             <td style="color:var(--text-muted)">${i+1}</td>
             <td class="store-name">${r.store||'—'}</td>
@@ -2391,7 +2541,7 @@ function renderGoldTracker() {
             <td>${brandBadge(r.brand)}</td>
             <td style="color:var(--text-dim)">${r.cm||'—'}</td>
             <td style="text-align:center;font-size:14px;font-weight:800;color:${scoreColor(r.overall)}">${r.overall??'—'}%</td>
-            <td style="text-align:center"><span style="font-weight:700;color:${gradeColor(r.grade)}">${r.grade||'—'}</span></td>
+            <td style="text-align:center;white-space:nowrap"><span style="font-weight:700;color:${gradeColor(finalGrade)}">${finalGrade||'—'}</span>${gradeSuffix}</td>
             <td style="text-align:center">${statusHtml}</td>
             <td style="text-align:center;font-size:10px;color:var(--text-muted)">${formatDateShort(r.date)}</td>
           </tr>`;
