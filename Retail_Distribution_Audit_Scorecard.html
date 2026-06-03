@@ -151,6 +151,20 @@
   .grade-c    { color: var(--amber); }
   .grade-d    { color: #e08030; }
   .grade-e    { color: var(--red); }
+  .grade-fail { color: var(--red); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* MANUAL OVERRIDE */
+  .override-option { display: flex; align-items: flex-start; gap: 10px; padding: 9px 11px; background: var(--surface); border: 1px solid var(--border2); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .override-option:hover { border-color: var(--text-muted); }
+  .override-option input[type="radio"] { margin-top: 3px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
+  .override-option.selected { border-color: var(--gold); background: var(--gold-bg); }
+  .override-option .ovr-hint { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+  .ovr-textarea { width: 100%; background: var(--surface); border: 1px solid var(--red); border-radius: 4px; color: var(--text); font-size: 12px; padding: 9px 11px; margin-top: 10px; font-family: inherit; line-height: 1.5; resize: vertical; min-height: 60px; }
+  .ovr-textarea:focus { outline: none; border-color: var(--gold); }
+  .critical-banner { background: rgba(192,96,96,0.10); border: 1px solid rgba(192,96,96,0.35); border-left: 3px solid var(--red); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+  .critical-banner-title { font-size: 10px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .critical-banner-item { font-size: 12px; color: var(--text); line-height: 1.55; padding: 3px 0; }
+  .critical-banner-item code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-muted); margin-right: 6px; }
 
   /* ACTION ITEMS */
   .action-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; }
@@ -283,7 +297,7 @@
     </div>
     <div class="field-group">
       <div class="field-label">Store Tier</div>
-      <select class="field-select" id="tier" onchange="recalc()">
+      <select class="field-select" id="tier" onchange="buildAll()">
         <option value="t1">T1 — Flagship</option>
         <option value="t2">T2 — Standard</option>
         <option value="t3">T3 — Basic</option>
@@ -349,8 +363,8 @@
       </div>
       <div style="text-align:right;font-size:10px;color:var(--text-muted);line-height:2;">
         <div>✓ Pass &nbsp;&nbsp; ✕ Fail &nbsp;&nbsp; — N/A</div>
-        <div style="margin-top:4px;">Gold ≥90% · A 80–89% · B 70–79%</div>
-        <div>C 60–69% · D 50–59% · E &lt;60%</div>
+        <div id="grade-scale-1" style="margin-top:4px;">Gold ≥90% · A 80–89% · B 70–79%</div>
+        <div id="grade-scale-2">C 60–69% · D 50–59% · E &lt;60%</div>
       </div>
     </div>
     <div class="section-scores" id="section-scores">
@@ -477,9 +491,44 @@
     <div class="summary-title">Score Breakdown</div>
     <div id="sum-section-rows">—</div>
     <div class="summary-row" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);border-bottom:none;">
-      <span class="label" style="font-weight:700;color:var(--text)">Overall</span>
+      <span class="label" style="font-weight:700;color:var(--text)">Calculated Score</span>
       <span style="font-size:20px;font-weight:800;" id="sum-overall">—</span>
     </div>
+  </div>
+  <div class="summary-section" id="sum-grade-resolution">
+    <div class="summary-title">Final Grade</div>
+
+    <!-- Critical issues banner (shown only when there are Critical fails) -->
+    <div id="sum-critical-banner" class="critical-banner" style="display:none;">
+      <div class="critical-banner-title">⚠ <span id="sum-critical-count">0</span> Critical issue<span id="sum-critical-plural">s</span> — <span id="sum-critical-cap-txt">grade auto-capped at </span><span id="sum-critical-cap">A</span></div>
+      <div id="sum-critical-list"></div>
+    </div>
+
+    <!-- Override controls -->
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:14px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.55;">As the auditor, you can override the calculated grade based on holistic judgment (e.g. urgent issues not captured by the criteria). Overrides are logged with your name and reason.</div>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <label class="override-option" id="ovr-opt-accept">
+          <input type="radio" name="override" value="" checked onchange="setManualOverride('')">
+          <span>Accept calculated grade — <strong id="ovr-calc-grade">—</strong></span>
+        </label>
+        <label class="override-option" id="ovr-opt-fail">
+          <input type="radio" name="override" value="fail" onchange="setManualOverride('fail')">
+          <span>Override → <strong style="color:var(--red)">FAIL</strong> <span class="ovr-hint">— reason required</span></span>
+        </label>
+        <label class="override-option" id="ovr-opt-pass" style="display:none;">
+          <input type="radio" name="override" value="pass" onchange="setManualOverride('pass')">
+          <span>Waive Critical cap — accept <strong id="ovr-pass-grade">—</strong> <span class="ovr-hint">— reason required, rarely used</span></span>
+        </label>
+      </div>
+      <textarea id="ovr-reason" class="ovr-textarea" placeholder="Reason for override... (e.g. 'urgent — product tags need replacement immediately', 'lifestyle visual outdated, undermines brand premium')" style="display:none;" oninput="setOverrideReason(this.value)"></textarea>
+    </div>
+
+    <div style="margin-top:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;font-weight:700;color:var(--text);">Final Grade</span>
+      <span id="sum-final-grade" style="font-size:24px;font-weight:800;">—</span>
+    </div>
+    <div id="sum-final-grade-note" style="margin-top:6px;font-size:11px;color:var(--text-muted);line-height:1.5;text-align:right;"></div>
   </div>
   <div class="summary-section" id="sum-fails-wrap">
     <div class="summary-title">Failed Items</div>
@@ -568,7 +617,16 @@
     data.country, data.store, data.brand, data.tier, data.cm,
     data.auditor, data.date, data.type,
     data.scoreA, data.scoreB, data.scoreC, data.scoreD, data.scoreE, data.scoreF,
-    data.overall, data.grade, data.passed, data.total,
+    data.overall,
+    data.calculatedGrade || data.grade || "",
+    data.criticalFailCount || 0,
+    data.criticalFails || "",
+    data.manualOverride || "",
+    data.manualOverrideReason || "",
+    data.manualOverrideBy || "",
+    data.gradeSource || "",
+    data.grade,
+    data.passed, data.total,
     data.failedItems, data.actions
   ]);
   return ContentService.createTextOutput(JSON.stringify({status:"success"}))
@@ -610,7 +668,7 @@ const critNotes = {}; // stores notes per criterion id
 const SECTIONS = {
   A: {
     label: "Assets & Condition",
-    weights: { t1:15, t2:20, t3:25 },
+    weights: { t1:20, t2:20, t3:25 },
     color: "var(--amber)",
     criteria: [
       { id:"A1", text:"All demo units and POS displays are accounted for", tags:["Critical"], tiers:null },
@@ -622,24 +680,24 @@ const SECTIONS = {
   },
   B: {
     label: "Brand Identity & Presence",
-    weights: { t1:20, t2:20, t3:20 },
+    weights: { t1:25, t2:20, t3:20 },
     color: "var(--blue)",
     groups: [
       { label:"Stage 1 — Inspire", color:"var(--gold)", desc:"Shoppers stop and browse our products", criteria:[
         { id:"B1", text:"Hero visuals and POS displays reflect the current campaign or latest product lineup — a passing shopper can immediately tell what's new or featured", tags:[], tiers:null },
-        { id:"B1a", text:"The brand is immediately identifiable at the display — brand logo or brand visual is clearly visible and a passing shopper can recognise the brand without approaching the display or reading product names", tags:["New"], tiers:null, isNew:true },
-        { id:"B2", text:"Brand video or screen content is current (not outdated)", tags:[], tiers:null },
-        { id:"B4", text:"Educational standees are displayed beside the relevant demos to highlight the new product feature", tags:["New"], tiers:null, isNew:true },
+        { id:"B1a", text:"The brand is immediately identifiable at the display — brand logo or brand visual is clearly visible and a passing shopper can recognise the brand without approaching the display or reading product names", tags:["New"], tiers:["t1"], isNew:true },
+        { id:"B2", text:"Brand video or screen content is current (not outdated)", tags:[], tiers:["t1","t2"] },
+        { id:"B4", text:"Educational standees are displayed beside the relevant demos to highlight the new product feature", tags:["New"], tiers:["t1","t2"], isNew:true },
       ]},
       { label:"Stage 2 — Educate", color:"var(--blue)", desc:"Shoppers learn USPs and can differentiate our brands", criteria:[
-        { id:"B4a", text:"Product tags, tent cards and standees are in good condition — no torn edges, fading, creasing, or handwritten corrections that would undermine the brand's presentation", tags:["New"], tiers:null, isNew:true },
-        { id:"B4b", text:"Product tags, tent cards and standees are displayed upright and straight — nothing is slanted, leaning, or misaligned in a way that looks untidy or unintentional", tags:["New"], tiers:null, isNew:true },
+        { id:"B4a", text:"Product tags, tent cards or standees are in good condition — no torn edges, fading, creasing, or handwritten corrections that would undermine the brand's presentation", tags:["New"], tiers:null, isNew:true },
+        { id:"B4b", text:"Product tags, tent cards and standees are displayed upright and straight — nothing is slanted, leaning, or misaligned in a way that looks untidy or unintentional", tags:["New"], tiers:["t1","t2"], isNew:true },
         { id:"B5", text:"Every demo unit has a product tag — key USPs are clearly legible and current pricing is visible. A shopper can understand the product and its price without staff assistance", tags:[], tiers:null },
-        { id:"B6", text:"Demos are displayed by category so a shopper can independently navigate the range and find what they are looking for", tags:[], tiers:null },
+        { id:"B6", text:"Demos are displayed by category so a shopper can independently navigate the range and find what they are looking for", tags:[], tiers:["t1"] },
       ]},
       { label:"Stage 3 — Convert", color:"#5aaa52", desc:"Shopper grabs stock and purchases", criteria:[
-        { id:"B7", text:"Stock display is well-balanced — key SKUs present, dedicated stock space looks inviting (not too empty to suggest closedown, not overfilled to suggest poor sales)", tags:[], tiers:null },
-        { id:"B7a", text:"Stock products (headphones, true wireless) are displayed at eye level or within easy reach — key SKUs are not placed on bottom shelves or hard-to-see positions", tags:["New"], tiers:null, isNew:true },
+        { id:"B7", text:"Stock display is well-balanced — key SKUs present, dedicated stock space looks inviting (not too empty to suggest closedown, not overfilled to suggest poor sales)", tags:[], tiers:["t1"] },
+        { id:"B7a", text:"Stock products (headphones, true wireless) are displayed at eye level or within easy reach — key SKUs are not placed on bottom shelves or hard-to-see positions", tags:["New"], tiers:["t1"], isNew:true },
       ]},
     ]
   },
@@ -649,7 +707,7 @@ const SECTIONS = {
     color: "#5aaa52",
     criteria: [
       { id:"C1", text:"Demo units, POS displays and all surfaces are dust-free and stain-free", tags:[], tiers:null },
-      { id:"C2", text:"iPad screens and mirrors, where present, are free from fingerprints and smudges", tags:["New"], tiers:null, isNew:true },
+      { id:"C2", text:"iPad screens and mirrors, where present, are free from fingerprints and smudges", tags:["New"], tiers:["t1"], isNew:true },
       { id:"C3", text:"Surrounding area is clean and litter-free", tags:[], tiers:null },
     ]
   },
@@ -658,10 +716,9 @@ const SECTIONS = {
     weights: { t1:10, t2:5, t3:5 },
     color: "var(--amber)",
     criteria: [
-      { id:"D1", text:"Brand space is not obstructed by mall fixtures or competitor displays", tags:["Critical"], tiers:null },
-      { id:"D2", text:"Our demos / POS displays / educational assets are displayed in a secondary location (Digital / physical)", tags:["New","T1/T2"], tiers:["t1","t2"], isNew:true },
-      { id:"D3", text:"Our brand has equal or stronger share-of-shelf vs the nearest competitor display", tags:["New","T1/T2"], tiers:["t1","t2"], isNew:true },
-      { id:"D4", text:"Brand logo or visual is visible from the main store aisle — a passing shopper can identify the brand without entering the display area", tags:["New","T3"], tiers:["t3"], isNew:true },
+      { id:"D1", text:"Brand space is not obstructed by mall fixtures or competitor displays", tags:[], tiers:["t1","t2"] },
+      { id:"D2", text:"Our demos / POS displays / educational assets are displayed in a secondary location (Digital / physical)", tags:["New"], tiers:["t1"], isNew:true },
+      { id:"D3", text:"Our brand has equal or stronger share-of-shelf vs the nearest competitor display", tags:["New"], tiers:["t1"], isNew:true },
       { id:"D5", text:"Demos / POS displays are placed at the agreed / desired position — any previous feedback from auditor / brands to reposition has been actioned by the CM", tags:["New"], tiers:null, isNew:true },
     ]
   },
@@ -671,8 +728,8 @@ const SECTIONS = {
     color: "var(--purple)",
     criteria: [
       { id:"E1", text:"Current campaign materials are correctly deployed — right assets, right placement, nothing missing", tags:["New","Critical"], tiers:null, isNew:true },
-      { id:"E2", text:"No outdated campaign materials present in store — all assets reflect the current period", tags:["New"], tiers:null, isNew:true },
-      { id:"E3", text:"Secondary display locations have both a demo and supporting signage / product tag — not a demo unit in isolation", tags:["New"], tiers:null, isNew:true },
+      { id:"E2", text:"No outdated campaign materials present in store — all assets reflect the current period", tags:["New"], tiers:["t1","t2"], isNew:true },
+      { id:"E3", text:"Secondary display locations have both a demo and supporting signage / product tag — not a demo unit in isolation", tags:["New"], tiers:["t1"], isNew:true },
     ]
   },
 };
@@ -680,7 +737,7 @@ const SECTIONS = {
 const SECTION_F = {
   sonos: {
     color: "var(--sonos)", label:"Demo & Experience — Sonos", sub:"Sonos only",
-    weights: { t1:35, t2:30, t3:20 },
+    weights: { t1:25, t2:30, t3:20 },
     groups: [
       { label:"Tech & Connectivity", color:"var(--blue)", criteria:[
         { id:"F1", text:"Spotify & Apple Music are linked, active, and a curated playlist is queued and ready to play — no setup steps required during a customer demo", tags:["Critical"], tiers:null , cmVerified:true },
@@ -689,27 +746,27 @@ const SECTION_F = {
       ]},
       { label:"Setup & Software", color:"var(--blue)", criteria:[
         { id:"F4", text:"Sub Mini / Sub correctly connected to recommended soundbar and audibly enhances the low-end — bass is clearly felt, not just technically connected", tags:[], tiers:null, cmVerified:true },
-        { id:"F5", text:"TV Audio Swap via Sonos Ace works seamlessly by pressing the Content Key — tested and confirmed working during audit", tags:[], tiers:null, cmVerified:true },
+        { id:"F5", text:"TV Audio Swap via Sonos Ace works seamlessly by pressing the Content Key — tested and confirmed working during audit", tags:[], tiers:["t1","t2"], cmVerified:true },
       ]},
       { label:"Content Readiness", color:"var(--blue)", criteria:[
-        { id:"F6", text:"Dolby Atmos content is playing on Atmos-capable speakers and the spatial audio difference is clearly audible", tags:[], tiers:null, cmVerified:true },
-        { id:"F7", text:"Thumb drives updated with latest Dolby Atmos clips and brand videos, neatly arranged", tags:[], tiers:null, cmVerified:true },
+        { id:"F6", text:"Dolby Atmos content is playing on Atmos-capable speakers and the spatial audio difference is clearly audible", tags:[], tiers:["t1","t2"], cmVerified:true },
+        { id:"F7", text:"Thumb drives updated with latest Dolby Atmos clips and brand videos, neatly arranged", tags:[], tiers:["t1","t2"], cmVerified:true },
       ]},
       { label:"★ Home Feel & USP Story", color:"var(--purple)", criteria:[
-        { id:"F8",  text:"The setup looks and feels like a premium home environment — speakers are positioned as they would be in a living room, not displayed as retail shelf stock", tags:["New"], tiers:null, isNew:true , cmVerified:true },
-        { id:"F9",  text:"The multi-room USP is clearly demonstrated — a shopper can see and hear Sonos playing across multiple speakers simultaneously without staff assistance", tags:["New"], tiers:null, isNew:true, cmVerified:true },
-        { id:"F10", text:"Ease of use is demonstrated — a shopper can press play, adjust volume, or switch rooms without any staff assistance", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F8",  text:"The setup looks and feels like a premium home environment — speakers are positioned as they would be in a living room, not displayed as retail shelf stock", tags:["New"], tiers:["t1"], isNew:true , cmVerified:true },
+        { id:"F9",  text:"The multi-room USP is clearly demonstrated — a shopper can see and hear Sonos playing across multiple speakers simultaneously without staff assistance", tags:["New"], tiers:["t1","t2"], isNew:true, cmVerified:true },
+        { id:"F10", text:"Ease of use is demonstrated — a shopper can press play, adjust volume, or switch rooms without any staff assistance", tags:["New"], tiers:["t1","t2"], isNew:true , cmVerified:true },
         { id:"F11", text:"Speakers are TruePlay-tuned and audio quality reflects Sonos sound", tags:["New"], tiers:null, isNew:true, cmVerified:true },
       ]},
     ]
   },
   marshall: {
     color: "var(--marshall)", label:"Demo & Experience — Marshall", sub:"Marshall only",
-    weights: { t1:35, t2:30, t3:20 },
+    weights: { t1:25, t2:30, t3:20 },
     groups: [
       { label:"Visual Impact", color:"var(--marshall)", criteria:[
-        { id:"F1", text:"The Marshall display is visually striking and brand-recognisable from at least 3 metres", tags:["New","Critical"], tiers:null, isNew:true , cmVerified:true },
-        { id:"F2", text:"The Marshall display looks more premium and distinctive than adjacent competitor displays — Marshall wins the visual share-of-floor in the immediate area", tags:["New"], tiers:null, isNew:true , cmVerified:true },
+        { id:"F1", text:"The Marshall display is visually striking and brand-recognisable from at least 3 metres", tags:["New"], tiers:["t1"], isNew:true , cmVerified:true },
+        { id:"F2", text:"The Marshall display looks more premium and distinctive than adjacent competitor displays — Marshall wins the visual share-of-floor in the immediate area", tags:["New"], tiers:["t1"], isNew:true , cmVerified:true },
         { id:"F3", text:"All Marshall demo units are powered on, illuminated where applicable, and playing music that is audible from the surrounding aisle", tags:[], tiers:null , cmVerified:true },
       ]},
       { label:"Demo Accessibility", color:"var(--amber)", criteria:[
@@ -717,26 +774,26 @@ const SECTION_F = {
         { id:"F5", text:"Headphone demos are clean, hygienic and ready for demos — ear cushions in good condition, cables untangled, no wear & tear that would deter a shopper from trying", tags:[], tiers:null , cmVerified:true },
       ]},
       { label:"Brand Storytelling", color:"var(--gold)", criteria:[
-        { id:"F6", text:"Hero product(s) for the current campaign period are the most prominently positioned — a shopper looking at the display knows which product Marshall wants them to consider first", tags:["New"], tiers:null, isNew:true , cmVerified:true },
-        { id:"F7", text:"Marshall's brand story or heritage is communicated through at least one visual element — a shopper understands this is more than a speaker brand", tags:[], tiers:null , cmVerified:true },
+        { id:"F6", text:"Hero product(s) for the current campaign period are the most prominently positioned — a shopper looking at the display knows which product Marshall wants them to consider first", tags:["New"], tiers:["t1","t2"], isNew:true , cmVerified:true },
+        { id:"F7", text:"Marshall's brand story or heritage is communicated through at least one visual element — a shopper understands this is more than a speaker brand", tags:[], tiers:["t1","t2"] , cmVerified:true },
         { id:"F8", text:"Key product USPs are specific and legible at point of demo — not just model names, but reasons to buy (e.g. 'up to 80hrs battery', 'multi-host Bluetooth')", tags:[], tiers:null , cmVerified:true },
-        { id:"F9", text:"Audio playing through Marshall demos is on-brand — rock, blues or lifestyle genres that reinforce the Marshall identity, not generic store or mall music", tags:[], tiers:null, cmVerified:true },
+        { id:"F9", text:"Audio playing through Marshall demos is on-brand — rock, blues or lifestyle genres that reinforce the Marshall identity, not generic store or mall music", tags:[], tiers:["t1"], cmVerified:true },
       ]},
     ]
   },
   bowers: {
     color: "var(--bowers)", label:"Demo & Experience — Bowers & Wilkins", sub:"B&W only",
-    weights: { t1:35, t2:30, t3:20 },
+    weights: { t1:25, t2:30, t3:20 },
     groups: [
       { label:"Brand Authority", color:"var(--bowers)", criteria:[
-        { id:"F1", text:"Brand ambassador visuals (David Beckham, Lando Norris, McLaren collaboration) are present and prominently placed — a shopper recognises the brand association immediately", tags:["New","Critical"], tiers:null, isNew:true , cmVerified:true },
-        { id:"F2", text:"Award recognitions and critical acclaim callouts are visible near relevant products — call-out is visible without asking staff", tags:["New"], tiers:null, isNew:true , cmVerified:true },
-        { id:"F3", text:"The display is clean, uncluttered and hero products are at eye level — Bowers' premium design-led identity is apparent at a glance and clearly apart from adjacent mid-tier brands", tags:["Critical"], tiers:null , cmVerified:true },
+        { id:"F1", text:"Brand ambassador visuals (David Beckham, Lando Norris, McLaren collaboration) are present and prominently placed — a shopper recognises the brand association immediately", tags:["New","Critical"], tiers:["t1","t2"], isNew:true , cmVerified:true },
+        { id:"F2", text:"Award recognitions and critical acclaim callouts are visible near relevant products — call-out is visible without asking staff", tags:["New"], tiers:["t1"], isNew:true , cmVerified:true },
+        { id:"F3", text:"The display is clean, uncluttered and hero products are at eye level — Bowers' premium design-led identity is apparent at a glance and clearly apart from adjacent mid-tier brands", tags:["Critical"], tiers:["t1","t2"] , cmVerified:true },
       ]},
       { label:"Demo Experience", color:"var(--blue)", criteria:[
-        { id:"F4", text:"Headphones (Px8, Pi8, McLaren editions) are at eye level, immediately accessible, and ready for self-demos — no physical barriers between shopper and demo", tags:[], tiers:null , cmVerified:true },
+        { id:"F4", text:"Headphones (Px8, Pi8, McLaren editions) are at eye level, immediately accessible, and ready for self-demos — no physical barriers between shopper and demo", tags:[], tiers:["t1","t2"] , cmVerified:true },
         { id:"F5", text:"All demo headphones are clean and hygienic — ear cushions undamaged, cables neat, in a condition a premium buyer would find acceptable", tags:[], tiers:null , cmVerified:true },
-        { id:"F6", text:"Wired or passive speakers are powered on and playing music — audio is audible at point of display", tags:[], tiers:null , cmVerified:true },
+        { id:"F6", text:"Wired or passive speakers are powered on and playing music — audio is audible at point of display", tags:[], tiers:["t1"] , cmVerified:true },
       ]},
     ]
   },
@@ -962,11 +1019,31 @@ function recalc() {
 
   if (overall !== null) {
     pctEl.textContent = overall + '%';
-    const grade = getGrade(overall);
+    let grade;
+    if (getActiveTier() === 't3') {
+      const {count: _t3cf} = getCriticalFailCount();
+      const _t3pass = _t3cf === 0 && overall >= 70;
+      grade = _t3pass
+        ? { label:'PASS', cls:'grade-b', color:'var(--green)' }
+        : { label:'FAIL', cls:'grade-fail', color:'var(--red)' };
+    } else {
+      grade = getGrade(overall);
+    }
     gradeEl.textContent = grade.label;
     gradeEl.className = 'grade-badge ' + grade.cls;
     progressEl.style.width = overall + '%';
     progressEl.style.background = grade.color;
+    const _gs1 = document.getElementById('grade-scale-1');
+    const _gs2 = document.getElementById('grade-scale-2');
+    if (_gs1 && _gs2) {
+      if (getActiveTier() === 't3') {
+        _gs1.textContent = 'Pass ≥70% · No Critical failures';
+        _gs2.textContent = 'Fail = Critical miss or score <70%';
+      } else {
+        _gs1.textContent = 'Gold ≥90% · A 80–89% · B 70–79%';
+        _gs2.textContent = 'C 60–69% · D 50–59% · E <60%';
+      }
+    }
   } else {
     pctEl.textContent = '—';
     gradeEl.textContent = '—';
@@ -984,6 +1061,95 @@ function getGrade(pct) {
   if (pct >= 60) return { label:'C',    cls:'grade-c',    color:'var(--amber)' };
   if (pct >= 50) return { label:'D',    cls:'grade-d',    color:'#e08030' };
   return              { label:'E',    cls:'grade-e',    color:'var(--red)' };
+}
+
+// ── GRADE RESOLUTION (Critical cap + manual override) ────────────────────────
+// State: manual override applied by the auditor on the Summary screen.
+//   manualOverride: null | 'fail' | 'pass'
+//     'fail' → final grade is FAIL regardless of score
+//     'pass' → waives the Critical auto-cap, accepts the raw calculated grade
+//   manualOverrideReason: required when override !== null
+let manualOverride = null;
+let manualOverrideReason = '';
+
+const GRADE_ORDER = ['Gold','A','B','C','D','E'];
+const GRADE_DETAILS = {
+  Gold: { cls:'grade-gold', color:'var(--gold)' },
+  A:    { cls:'grade-a',    color:'var(--blue)' },
+  B:    { cls:'grade-b',    color:'#6aaa62' },
+  C:    { cls:'grade-c',    color:'var(--amber)' },
+  D:    { cls:'grade-d',    color:'#e08030' },
+  E:    { cls:'grade-e',    color:'var(--red)' },
+  PASS: { cls:'grade-b',    color:'var(--green)' },
+  FAIL: { cls:'grade-fail', color:'var(--red)' }
+};
+
+function shiftGradeDown(label) {
+  const idx = GRADE_ORDER.indexOf(label);
+  if (idx === -1) return label;          // unknown — leave alone
+  if (idx === GRADE_ORDER.length - 1) return label; // already E
+  return GRADE_ORDER[idx + 1];
+}
+
+// Count Critical-tagged criteria that have been scored 'no' (applicable to current tier)
+function getCriticalFailCount() {
+  let count = 0;
+  const failed = [];
+  ['A','B','C','D','E','F'].forEach(secId => {
+    getAllCriteria(secId).filter(c => isCritApplicable(c)).forEach(c => {
+      if ((c.tags || []).includes('Critical') && scores[c.id] === 'no') {
+        count++;
+        failed.push({ id: c.id, text: c.text });
+      }
+    });
+  });
+  return { count, failed };
+}
+
+// Resolve the final grade given the raw calculated %, the Critical-fail count,
+// and any manual override. Returns { label, cls, color, source } where:
+//   source: 'calculated' | 'criticalCap' | 'override-fail' | 'override-pass'
+function getFinalGrade(pct, criticalFailCount, override) {
+  if (pct === null) {
+    return { label:'—', cls:'', color:'var(--text-muted)', source:'calculated' };
+  }
+  // Manual override → FAIL takes absolute precedence
+  if (override === 'fail') {
+    return { label:'FAIL', ...GRADE_DETAILS.FAIL, source:'override-fail' };
+  }
+  // T3: Pass/Fail mode (no grade tiers)
+  if (getActiveTier() === 't3') {
+    if (criticalFailCount >= 1) return { label:'FAIL', cls:'grade-fail', color:'var(--red)', source:'criticalCap' };
+    if (pct >= 70) return { label:'PASS', cls:'grade-b', color:'var(--green)', source:'calculated' };
+    return { label:'FAIL', cls:'grade-fail', color:'var(--red)', source:'calculated' };
+  }
+  const baseGrade = getGrade(pct);
+  // Manual override → PASS waives the Critical cap
+  if (override === 'pass') {
+    return { label: baseGrade.label, ...GRADE_DETAILS[baseGrade.label], source:'override-pass' };
+  }
+  // Critical fail → cap grade one tier below
+  if (criticalFailCount >= 1) {
+    const capped = shiftGradeDown(baseGrade.label);
+    return { label: capped, ...GRADE_DETAILS[capped], source:'criticalCap' };
+  }
+  return { label: baseGrade.label, ...GRADE_DETAILS[baseGrade.label], source:'calculated' };
+}
+
+// Setters wired to the UI radios + textarea
+function setManualOverride(val) {
+  manualOverride = val || null;
+  // If user switches away from an override, clear the reason
+  if (manualOverride === null) manualOverrideReason = '';
+  // Sync the textarea value if it has been cleared
+  const ta = document.getElementById('ovr-reason');
+  if (ta && manualOverride === null) ta.value = '';
+  updateSummary();
+}
+
+function setOverrideReason(val) {
+  manualOverrideReason = (val || '').trim();
+  updateSummary();
 }
 
 // ── SUMMARY ───────────────────────────────────────────────────────────────────
@@ -1023,13 +1189,90 @@ function updateSummary() {
 
   const overall = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight * 100) : null;
   const sumOverall = document.getElementById('sum-overall');
+  const calcGrade = overall !== null ? getGrade(overall) : null;
   if (overall !== null) {
-    const grade = getGrade(overall);
-    sumOverall.textContent = overall + '% — ' + grade.label;
-    sumOverall.className = grade.cls;
+    if (getActiveTier() === 't3') {
+      const {count:_t3cf2} = getCriticalFailCount();
+      const _t3g = _t3cf2 === 0 && overall >= 70 ? {label:'PASS',cls:'grade-b'} : {label:'FAIL',cls:'grade-fail'};
+      sumOverall.textContent = overall + '% — ' + _t3g.label;
+      sumOverall.className = _t3g.cls;
+    } else {
+      sumOverall.textContent = overall + '% — ' + calcGrade.label;
+      sumOverall.className = calcGrade.cls;
+    }
   } else {
     sumOverall.textContent = '—';
     sumOverall.className = '';
+  }
+
+  // ── FINAL GRADE PANEL ─────────────────────────────────────────────────────
+  const criticals = getCriticalFailCount();
+  const finalGrade = getFinalGrade(overall, criticals.count, manualOverride);
+
+  // Critical banner
+  const banner = document.getElementById('sum-critical-banner');
+  if (banner) {
+    if (criticals.count > 0 && overall !== null) {
+      banner.style.display = 'block';
+      document.getElementById('sum-critical-count').textContent = criticals.count;
+      document.getElementById('sum-critical-plural').textContent = criticals.count === 1 ? '' : 's';
+      const capLabel = getActiveTier() === 't3' ? 'FAIL' : shiftGradeDown((calcGrade && calcGrade.label) || 'Gold');
+      document.getElementById('sum-critical-cap').textContent = capLabel;
+      const _cptxt = document.getElementById('sum-critical-cap-txt');
+      if (_cptxt) _cptxt.textContent = getActiveTier() === 't3' ? 'result is ' : 'grade auto-capped at ';
+      document.getElementById('sum-critical-list').innerHTML = criticals.failed.map(f =>
+        `<div class="critical-banner-item"><code>${escHtml(f.id)}</code>${escHtml(f.text)}</div>`
+      ).join('');
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  // Override option labels — show what each choice would result in
+  const calcGradeEl = document.getElementById('ovr-calc-grade');
+  const passGradeEl = document.getElementById('ovr-pass-grade');
+  const passOpt = document.getElementById('ovr-opt-pass');
+  if (calcGradeEl) {
+    // "Accept" shows the result AFTER Critical cap (the default behaviour)
+    if (overall !== null) {
+      const acceptResult = criticals.count >= 1 ? shiftGradeDown(calcGrade.label) : calcGrade.label;
+      calcGradeEl.textContent = acceptResult + (criticals.count >= 1 ? ' (capped from ' + calcGrade.label + ')' : '');
+    } else {
+      calcGradeEl.textContent = '—';
+    }
+  }
+  if (passGradeEl && calcGrade) passGradeEl.textContent = calcGrade.label;
+  // Only show the "Waive Critical cap" option when there ARE critical fails
+  if (passOpt) passOpt.style.display = (criticals.count >= 1 && overall !== null && getActiveTier() !== 't3') ? 'flex' : 'none';
+
+  // Textarea visibility — show when an override is selected
+  const ta = document.getElementById('ovr-reason');
+  if (ta) ta.style.display = (manualOverride === 'fail' || manualOverride === 'pass') ? 'block' : 'none';
+
+  // Highlight the selected option visually
+  ['accept','fail','pass'].forEach(k => {
+    const opt = document.getElementById('ovr-opt-' + k);
+    if (!opt) return;
+    const isSelected = (k === 'accept' && !manualOverride) || (k === manualOverride);
+    opt.classList.toggle('selected', isSelected);
+  });
+
+  // Final grade display
+  const finalEl = document.getElementById('sum-final-grade');
+  const finalNoteEl = document.getElementById('sum-final-grade-note');
+  if (finalEl) {
+    finalEl.textContent = finalGrade.label;
+    finalEl.className = finalGrade.cls;
+  }
+  if (finalNoteEl) {
+    const _isT3note = getActiveTier() === 't3';
+    const labels = {
+      'calculated':   _isT3note && finalGrade.label === 'FAIL' ? 'Score below 70% — T3 result is Fail' : '',
+      'criticalCap':  _isT3note ? 'Critical failure — T3 result is Fail' : `Auto-capped from ${calcGrade ? calcGrade.label : ''} due to ${criticals.count} Critical fail${criticals.count===1?'':'s'}`,
+      'override-fail':'Manual override — auditor judgment',
+      'override-pass':`Manual override — Critical cap waived, accepting calculated ${calcGrade ? calcGrade.label : ''}`
+    };
+    finalNoteEl.textContent = labels[finalGrade.source] || '';
   }
 
   // Failed items
@@ -1073,6 +1316,12 @@ function resetAudit() {
   if (!confirm("Reset all scores and photos? This cannot be undone.")) return;
   scores = {};
   Object.keys(critNotes).forEach(k => delete critNotes[k]);
+  manualOverride = null;
+  manualOverrideReason = '';
+  const overrideRadios = document.querySelectorAll('input[name="override"]');
+  overrideRadios.forEach(r => { r.checked = (r.value === ''); });
+  const ovrTa = document.getElementById('ovr-reason');
+  if (ovrTa) ovrTa.value = '';
   renderNoteActions();
   resetPhotos();
   buildAll();
@@ -1401,12 +1650,31 @@ function submitAudit() {
   const overall = calcOverall();
   if (overall === null) { showToast('Please score at least one criterion first'); return; }
 
+  // Manual-override validation — reason required
+  if ((manualOverride === 'fail' || manualOverride === 'pass') && !manualOverrideReason.trim()) {
+    showToast('Please provide a reason for the manual override before submitting');
+    switchTab('summary', document.querySelectorAll('.nav-tab')[2]);
+    setTimeout(() => {
+      const ta = document.getElementById('ovr-reason');
+      if (ta) { ta.focus(); ta.style.borderColor = 'var(--red)'; }
+    }, 100);
+    return;
+  }
+
   const record = buildAuditRecord();
   saveAuditLocally(record);
 
   // Reset follow-up state — new audit submitted, the loop is closed
   currentFollowups = {};
   followupDismissedFor = null;
+
+  // Reset manual override state — fresh slate for next audit
+  manualOverride = null;
+  manualOverrideReason = '';
+  const overrideRadios = document.querySelectorAll('input[name="override"]');
+  overrideRadios.forEach(r => { r.checked = (r.value === ''); });
+  const ovrTa = document.getElementById('ovr-reason');
+  if (ovrTa) ovrTa.value = '';
 
   const photoCount = getTotalPhotoCount();
   const sheetsUrl = localStorage.getItem('sheetsUrl');
@@ -1440,7 +1708,9 @@ function buildAuditRecord() {
     secScores[id] = pct;
   });
   const overall = calcOverall();
-  const grade = overall !== null ? getGrade(overall).label : '—';
+  const calculatedGrade = overall !== null ? getGrade(overall).label : '—';
+  const criticals = getCriticalFailCount();
+  const finalGrade = getFinalGrade(overall, criticals.count, manualOverride);
 
   // Collect failed items
   const failedItems = [];
@@ -1489,7 +1759,15 @@ function buildAuditRecord() {
     }, 0),
     scoreA: secScores.A, scoreB: secScores.B, scoreC: secScores.C,
     scoreD: secScores.D, scoreE: secScores.E, scoreF: secScores.F,
-    overall, grade,
+    overall,
+    calculatedGrade,                                                          // grade from % alone (no Critical cap, no override)
+    criticalFailCount: criticals.count,                                       // number of Critical-tagged items scored NO
+    criticalFails: criticals.failed.map(f => f.id).join(', '),                // comma list of IDs e.g. "A1, D1"
+    manualOverride: manualOverride || '',                                     // '' | 'fail' | 'pass'
+    manualOverrideReason: manualOverrideReason || '',                         // required when override !== ''
+    manualOverrideBy: (manualOverride ? getAuditorDisplay() : ''),            // who applied the override
+    gradeSource: finalGrade.source,                                           // 'calculated' | 'criticalCap' | 'override-fail' | 'override-pass'
+    grade: finalGrade.label,                                                  // FINAL grade — what the dashboard should read
     passed: totalPassed, total: totalItems,
     failedItems: failedItems.join(' | '),
     critNotes: getAllCritNotes(),
@@ -1581,12 +1859,21 @@ function testSheetConnection() {
 function exportCSV() {
   const history = getAuditHistory();
   if (!history.length) { showToast('No audit history to export'); return; }
-  const headers = ['Timestamp','Country','Store','Brand','Tier','CM','Auditor','Date','Type','A%','B%','C%','D%','E%','F%','Overall%','Grade','Passed','Total','Failed Items','Actions'];
+  const headers = ['Timestamp','Country','Store','Brand','Tier','CM','Auditor','Date','Type','A%','B%','C%','D%','E%','F%','Overall%','Calculated Grade','Critical Fails Count','Critical Fail IDs','Manual Override','Override Reason','Override By','Grade Source','Final Grade','Passed','Total','Failed Items','Actions'];
   const rows = history.map(r => [
     r.timestamp, r.countryLabel||r.country, r.store, r.brand, r.tier, r.cm,
     r.auditor, r.date, r.type,
     r.scoreA??'', r.scoreB??'', r.scoreC??'', r.scoreD??'', r.scoreE??'', r.scoreF??'',
-    r.overall, r.grade, r.passed, r.total,
+    r.overall,
+    r.calculatedGrade||r.grade||'',
+    r.criticalFailCount??'',
+    '"'+(r.criticalFails||'').replace(/"/g,'""')+'"',
+    r.manualOverride||'',
+    '"'+(r.manualOverrideReason||'').replace(/"/g,'""')+'"',
+    r.manualOverrideBy||'',
+    r.gradeSource||'',
+    r.grade,
+    r.passed, r.total,
     '"'+(r.failedItems||'').replace(/"/g,'""')+'"',
     '"'+(r.actions||'').replace(/"/g,'""')+'"',
   ].join(','));
@@ -1601,7 +1888,7 @@ function exportCSV() {
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function gradeColor(grade) {
-  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)'}[grade] || 'var(--text-muted)';
+  return {Gold:'var(--gold)',A:'var(--blue)',B:'var(--green)',C:'var(--amber)',D:'#e08030',E:'var(--red)',FAIL:'var(--red)'}[grade] || 'var(--text-muted)';
 }
 
 function barColor(pct) {
@@ -1658,7 +1945,7 @@ function renderDashboard() {
   const scores = history.map(r => r.overall).filter(s => s !== null && s !== undefined);
   const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
   const goldCount = history.filter(r => r.grade === 'Gold').length;
-  const failCount = history.filter(r => ['D','E'].includes(r.grade)).length;
+  const failCount = history.filter(r => ['D','E','FAIL'].includes(r.grade)).length;
 
   document.getElementById('d-avg').textContent = avg !== null ? avg + '%' : '—';
   document.getElementById('d-gold').textContent = goldCount;
@@ -1694,7 +1981,7 @@ function renderDashboard() {
   renderBars('dash-by-cm',      groupAvg('cm'), '160px');
 
   // Grade distribution
-  const grades = {Gold:0,A:0,B:0,C:0,D:0,E:0};
+  const grades = {Gold:0,A:0,B:0,C:0,D:0,E:0,FAIL:0};
   history.forEach(r => { if (grades[r.grade] !== undefined) grades[r.grade]++; });
   document.getElementById('dash-grades').innerHTML = Object.entries(grades).map(([g,c]) => `
     <div style="flex:1;min-width:60px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 8px;text-align:center;">
@@ -1764,9 +2051,31 @@ function toggleCritNote(id) {
 
 // ── PRE-AUDIT FOLLOW-UP ──────────────────────────────────────────
 // State: currentFollowups[critId] = { id, text, status, note }
-//   status: 'resolved' | 'open' | 'escalated' | null
+//   status: 'resolved' | 'open' | 'na' | 'escalated' | null
+//   note: required when status === 'na' (structural/deferred items)
 let currentFollowups = {};
 let followupDismissedFor = null; // 'StoreName|BrandName' if dismissed for that combo
+
+// Look up the CURRENT text of a criterion by ID (covers all sections + all brand F variants).
+// Used to refresh follow-up rows so wording updates to criteria flow through, instead of
+// replaying truncated/stale text from older audit records.
+function getCurrentCriterionText(id) {
+  // Try standard sections first (A-E + the active brand's F)
+  for (const secId of ['A','B','C','D','E','F']) {
+    try {
+      const found = getAllCriteria(secId).find(c => c.id === id);
+      if (found) return found.text;
+    } catch (e) { /* brand may not be set yet for F — fall through */ }
+  }
+  // Fallback: scan every brand's F section in case the brand has since changed
+  for (const brandKey of Object.keys(SECTION_F || {})) {
+    const sec = SECTION_F[brandKey];
+    if (!sec || !sec.groups) continue;
+    const found = sec.groups.flatMap(g => g.criteria).find(c => c.id === id);
+    if (found) return found.text;
+  }
+  return null;
+}
 
 function getCurrentFollowups() {
   // Return only items with status set
@@ -1838,28 +2147,37 @@ function loadFollowupForCurrentSelection() {
     return;
   }
 
-  // Build the follow-up state
+  // Build the follow-up state — refresh each item's text against the CURRENT criterion
+  // wording (so updates to criteria text flow through, and any old truncated strings
+  // stored in failedItems are replaced with the up-to-date full text).
   currentFollowups = {};
   items.forEach(it => {
-    currentFollowups[it.id] = { id: it.id, text: it.text, status: null, note: '' };
+    const currentText = getCurrentCriterionText(it.id);
+    currentFollowups[it.id] = {
+      id: it.id,
+      text: currentText || it.text,
+      status: null,
+      note: ''
+    };
   });
 
   // Render meta + items
   document.getElementById('followup-meta').innerHTML =
-    `<strong style="color:var(--text)">${items.length} item${items.length===1?'':'s'}</strong> scored NO at the last audit on <strong style="color:var(--text)">${prev.date}</strong> · Mark each as resolved / still open / escalated before continuing.`;
+    `<strong style="color:var(--text)">${items.length} item${items.length===1?'':'s'}</strong> scored NO at the last audit on <strong style="color:var(--text)">${prev.date}</strong> · Mark each as resolved, still open, N/A for now, or escalated before continuing.<br><span style="color:var(--text-muted);font-size:10px;display:inline-block;margin-top:6px;line-height:1.5;">💡 Use <strong style="color:var(--blue)">N/A for now</strong> for items genuinely outside CM control (e.g. secondary display space not yet available, capex required) — a note explaining why is required.</span>`;
 
-  document.getElementById('followup-items').innerHTML = items.map(it => `
-    <div id="fu-row-${it.id}" style="background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--text);line-height:1.55;margin-bottom:8px;">
+  document.getElementById('followup-items').innerHTML = Object.values(currentFollowups).map(it => `
+    <div id="fu-row-${it.id}" style="background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:8px;overflow:hidden;">
+      <div style="font-size:11px;color:var(--text);line-height:1.55;margin-bottom:8px;word-break:break-word;overflow-wrap:anywhere;">
         <span style="color:var(--text-muted);font-family:ui-monospace,monospace;font-size:10px;">${it.id}</span>
-        &nbsp;${it.text}
+        &nbsp;${escHtml(it.text)}
       </div>
-      <div style="display:flex;gap:5px;margin-bottom:6px;">
-        <button class="fu-pill" data-status="resolved" onclick="setFollowupStatus('${it.id}','resolved')" style="flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Resolved</button>
-        <button class="fu-pill" data-status="open" onclick="setFollowupStatus('${it.id}','open')" style="flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Still open</button>
-        <button class="fu-pill" data-status="escalated" onclick="setFollowupStatus('${it.id}','escalated')" style="flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Escalate</button>
+      <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;">
+        <button class="fu-pill" data-status="resolved" onclick="setFollowupStatus('${it.id}','resolved')" style="flex:1 1 calc(50% - 3px);background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Resolved</button>
+        <button class="fu-pill" data-status="open" onclick="setFollowupStatus('${it.id}','open')" style="flex:1 1 calc(50% - 3px);background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Still open</button>
+        <button class="fu-pill" data-status="na" onclick="setFollowupStatus('${it.id}','na')" style="flex:1 1 calc(50% - 3px);background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">N/A for now</button>
+        <button class="fu-pill" data-status="escalated" onclick="setFollowupStatus('${it.id}','escalated')" style="flex:1 1 calc(50% - 3px);background:var(--surface2);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:5px 4px;font-size:10px;cursor:pointer;font-weight:500;">Escalate</button>
       </div>
-      <textarea id="fu-note-${it.id}" rows="1" placeholder="Optional note..." oninput="setFollowupNote('${it.id}',this.value);autoGrowTextarea(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text-dim);font-size:10px;padding:5px 8px;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
+      <textarea id="fu-note-${it.id}" rows="1" placeholder="Optional note..." oninput="setFollowupNote('${it.id}',this.value);autoGrowTextarea(this);updateFollowupContinueState();" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text-dim);font-size:10px;padding:5px 8px;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
     </div>
   `).join('');
 
@@ -1880,6 +2198,7 @@ function setFollowupStatus(id, status) {
       const colors = {
         resolved:  { bg:'rgba(106,170,98,0.18)', color:'var(--green)' },
         open:      { bg:'rgba(184,150,90,0.18)', color:'var(--amber)' },
+        na:        { bg:'rgba(122,168,184,0.18)', color:'var(--blue)' },
         escalated: { bg:'rgba(192,96,96,0.18)',  color:'var(--red)' }
       }[status] || { bg:'var(--surface2)', color:'var(--text-muted)' };
       btn.style.background = colors.bg;
@@ -1894,6 +2213,18 @@ function setFollowupStatus(id, status) {
     }
   });
 
+  // Update note field — placeholder + border indicate when a note is required (N/A)
+  const noteEl = document.getElementById('fu-note-' + id);
+  if (noteEl) {
+    if (status === 'na') {
+      noteEl.placeholder = 'Required: why is this deferred? (e.g. awaiting landlord approval, capex needed, layout constraint)';
+      noteEl.style.borderColor = 'var(--blue)';
+    } else {
+      noteEl.placeholder = 'Optional note...';
+      noteEl.style.borderColor = 'var(--border2)';
+    }
+  }
+
   updateFollowupContinueState();
 }
 
@@ -1907,7 +2238,9 @@ function updateFollowupContinueState() {
   if (!btn) return;
   const items = Object.values(currentFollowups);
   const unmarked = items.filter(i => !i.status).length;
-  if (unmarked === 0 && items.length > 0) {
+  const naMissingNote = items.filter(i => i.status === 'na' && !(i.note || '').trim()).length;
+
+  if (unmarked === 0 && naMissingNote === 0 && items.length > 0) {
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
@@ -1917,8 +2250,13 @@ function updateFollowupContinueState() {
     btn.disabled = true;
     btn.style.opacity = '0.4';
     btn.style.cursor = 'not-allowed';
-    status.textContent = `${unmarked} of ${items.length} items still need marking`;
-    status.style.color = 'var(--text-muted)';
+    if (unmarked > 0) {
+      status.textContent = `${unmarked} of ${items.length} item${items.length===1?'':'s'} still need marking`;
+      status.style.color = 'var(--text-muted)';
+    } else {
+      status.textContent = `${naMissingNote} "N/A for now" item${naMissingNote===1?'':'s'} need${naMissingNote===1?'s':''} a note explaining why`;
+      status.style.color = 'var(--blue)';
+    }
   }
 }
 
