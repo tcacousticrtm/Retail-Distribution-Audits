@@ -743,7 +743,7 @@ const ALL_STORES = [
   {name:'Powerbuy @ Central Phuket', country:'TH', retailer:'Powerbuy', cm:'Ning', tier:3, brands:['Sonos']},
   {name:'Powerbuy @ Central Samui',  country:'TH', retailer:'Powerbuy', cm:'Ning', tier:3, brands:['Sonos']},
   // Dotlife
-  {name:'Dotlife @ centralwOrld',      country:'TH', retailer:'Dotlife', cm:'Ning', tier:1, brands:['Sonos']},
+  {name:'Dotlife @ centralwOrld',      country:'TH', retailer:'Dotlife', cm:'Oak', tier:1, brands:['Sonos']},
   {name:'Dotlife @ Mega Bangna',       country:'TH', retailer:'Dotlife', cm:'Ning', tier:1, brands:['Sonos']},
   {name:'Dotlife @ Central Rama 9',    country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
   {name:'Dotlife @ Central Eastville', country:'TH', retailer:'Dotlife', cm:'Ning', tier:2, brands:['Sonos']},
@@ -1884,7 +1884,7 @@ async function sendTelegramReport(cmName) {
 }
 
 // ─── SEND REPORTS TAB ─────────────────────────────────────────────
-const CM_LIST = ['Zhi Yong','Johnathan','Jerome','Goh Xinyi','Sinclair','Bryce','Adrian','Jin Nong','Ginger Kiang','Ricky','Ning'];
+const CM_LIST = ['Zhi Yong','Johnathan','Jerome','Goh Xinyi','Sinclair','Bryce','Adrian','Jin Nong','Ginger Kiang','Ricky','Ning','Oak'];
 
 function getWebAppUrl() {
   return localStorage.getItem('tcScoresSheetUrl') || '';
